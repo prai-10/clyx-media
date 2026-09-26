@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
 
 type Fields = Record<string, any>;
 type ServerItem = { id: string; isHidden: boolean; sortOrder: number; data: Fields };
-type AdminContent = { blocks: Record<string, Fields>; collections: Record<string, ServerItem[]> };
+export type AdminContent = { blocks: Record<string, Fields>; collections: Record<string, ServerItem[]> };
 
 /** A card as the admin screens use it: its fields, an id, and a `hidden` flag. */
 export type ListItem = { id: string; hidden: boolean } & Fields;
@@ -87,7 +88,8 @@ export function useServerList<T extends { id: string; hidden: boolean }>(
       const failed = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
       await refetch();
       setOptimistic(null);
-      if (failed) window.alert(`Could not save: ${errorText(failed.reason)}`);
+      if (failed) toast.error(`Could not save: ${errorText(failed.reason)}`);
+      else if (jobs.length) toast.success('Saved to the live website');
     },
     [collection, position, createItem, updateItem, deleteItem, refetch],
   );
@@ -113,10 +115,29 @@ export function useSaveBlock(refetch: () => Promise<unknown>) {
       try {
         await saveBlock.mutateAsync({ key, value });
         await refetch();
+        return true;
       } catch (err) {
-        window.alert(`Could not save: ${errorText(err)}`);
+        toast.error(`Could not save: ${errorText(err)}`);
+        return false;
       }
     },
     [saveBlock, refetch],
+  );
+}
+
+/** Moves one card up or down in its list, then reloads. */
+export function useMoveItem(refetch: () => Promise<unknown>) {
+  const moveItem = trpc.admin.moveItem.useMutation();
+  return useCallback(
+    async (id: string, direction: 'up' | 'down') => {
+      if (!UUID.test(id)) return;
+      try {
+        await moveItem.mutateAsync({ id, direction });
+        await refetch();
+      } catch (err) {
+        toast.error(`Could not reorder: ${errorText(err)}`);
+      }
+    },
+    [moveItem, refetch],
   );
 }

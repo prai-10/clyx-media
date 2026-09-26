@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import PageShell from '@/components/layout/PageShell';
-import { Label } from '@/components/ui/primitives';
+import CasePattern from '@/components/sections/CasePattern';
 import { cn } from '@/lib/utils';
 import { useCollection } from '@/lib/siteContent';
+import { safeHref, usePageContent } from '@/lib/pageContent';
 
 interface CaseStudyItem {
   id: string;
@@ -73,9 +74,15 @@ const defaultCaseStudies: CaseStudyItem[] = [
 function HoverExpand_002({
   items,
   className,
+  buttonText,
+  buttonUrl,
+  outcomeLabel,
 }: {
   items: CaseStudyItem[];
   className?: string;
+  buttonText: string;
+  buttonUrl: string;
+  outcomeLabel: string;
 }) {
   const [activeItem, setActiveItem] = useState<number | null>(0);
 
@@ -170,7 +177,7 @@ function HoverExpand_002({
                     <div className="flex flex-wrap items-end justify-between gap-4 border-t border-white/20 pt-4">
                       <div>
                         <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/60 block">
-                          Verified Scale Outcome
+                          {outcomeLabel}
                         </span>
                         <span className="display text-2xl md:text-4xl font-bold text-yellow mt-0.5 block">
                           {item.result}
@@ -178,11 +185,11 @@ function HoverExpand_002({
                       </div>
 
                       <a
-                        href="/contact"
+                        href={safeHref(buttonUrl || '/contact')}
                         onClick={(e) => e.stopPropagation()}
                         className="inline-flex items-center gap-2 rounded-full bg-yellow px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-dark hover:bg-blue hover:text-white transition-colors"
                       >
-                        Request Case Breakdown <ArrowUpRight size={15} />
+                        {buttonText} <ArrowUpRight size={15} />
                       </a>
                     </div>
                   </motion.div>
@@ -197,6 +204,7 @@ function HoverExpand_002({
 }
 
 export default function CaseStudies() {
+  const c = usePageContent('caseStudies');
   const caseStudies = useCollection<CaseStudyItem>('caseStudies', defaultCaseStudies, (item, i) => ({
     id: item.id,
     code: String(i + 1).padStart(2, '0'),
@@ -212,34 +220,20 @@ export default function CaseStudies() {
 
   return (
     <PageShell
-      eyebrow="Case studies"
+      eyebrow={c.heroEyebrow}
       title={
         <>
-          The work behind
+          {c.heroTitle}
           <br />
-          <span className="text-yellow">the movement.</span>
+          <span className="text-yellow">{c.heroHighlight}</span>
         </>
       }
-      intro="Real brands, real constraints, real growth systems. Explore how CLYX turns creative instinct into measurable momentum."
+      intro={c.heroIntro}
     >
       {/* Skiper53 / HoverExpand_002 Expanding Accordion Showcase */}
-      <HoverExpand_002 items={caseStudies} />
+      <HoverExpand_002 items={caseStudies} buttonText={c.caseButton} buttonUrl={c.caseButtonUrl} outcomeLabel={c.caseOutcomeLabel} />
 
-      <section className="bg-yellow text-dark">
-        <div className="container grid gap-10 py-16 md:grid-cols-[1fr_1fr] md:items-end md:py-24">
-          <div>
-            <Label className="text-dark">The recurring pattern</Label>
-            <h2 className="display text-4xl font-bold md:text-6xl">
-              Find the signal.
-              <br />
-              Scale the signal.
-            </h2>
-          </div>
-          <p className="max-w-md text-sm leading-6 opacity-85">
-            The best results rarely come from one perfect post. They come from building a system that knows what to keep, what to cut, and what to try next.
-          </p>
-        </div>
-      </section>
+      <CasePattern content={c} />
     </PageShell>
   );
 }

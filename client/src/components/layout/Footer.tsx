@@ -1,88 +1,116 @@
-import { Instagram, Linkedin, ArrowUpRight } from 'lucide-react';
+import { Instagram, Linkedin, ArrowUpRight, ArrowUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { footerColumns } from '@/data/home';
+import { isExternalHref, parseLinks, safeHref, usePageContent } from '@/lib/pageContent';
+import '@/styles/site-footer.css';
 
-const footerRoutes: Record<string, string> = {
-  About: '/about',
-  Creators: '/creators',
-  Careers: '/careers',
-  Admin: '/admin',
-  Services: '/services',
-  Portfolio: '/portfolio',
-  'Case studies': '/case-studies',
-  WhatsApp: 'https://wa.me/919671430111',
-  Calendly: '/contact#contact-form',
-};
+// Opens off-site links in a new tab.
+const targetFor = (href: string) => (isExternalHref(href) ? { target: '_blank', rel: 'noreferrer' } : {});
 
 export function Footer() {
-  return (
-    <footer className="shared-site-footer border-t border-white/20 bg-blue text-white" id="contact">
-      <div className="container py-14 md:py-20">
-        <div className="shared-footer-grid grid gap-12 md:grid-cols-[1.5fr_1fr_1fr_1.2fr]">
-          <div className="shared-footer-brand">
-            <div className="display text-3xl font-bold">
-              CLYX<span className="text-yellow">.</span>
-            </div>
-            <p className="mt-5 max-w-xs text-sm leading-6 text-white/80">
-              The performance creative partner for brands that want to move faster than the feed.
-            </p>
-            <div className="mt-7 flex gap-3">
-              <a
-                className="border border-white/30 p-3 hover:border-yellow hover:text-yellow transition-colors"
-                href="https://www.instagram.com/d2cwithclyx"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Instagram"
-              >
-                <Instagram size={16} />
-              </a>
-              <a
-                className="border border-white/30 p-3 hover:border-yellow hover:text-yellow transition-colors"
-                href="https://www.linkedin.com/company/clyxmediax/"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="LinkedIn"
-              >
-                <Linkedin size={16} />
-              </a>
-            </div>
-          </div>
+  const c = usePageContent('global');
+  const year = new Date().getFullYear();
+  const socials = [
+    { label: 'Instagram', href: c.instagramUrl, Icon: Instagram },
+    { label: 'LinkedIn', href: c.linkedinUrl, Icon: Linkedin },
+  ].filter(s => s.href);
+  const columns = [1, 2, 3]
+    .map(n => ({ title: c[`footerCol${n}Title`], links: parseLinks(c[`footerCol${n}Links`]) }))
+    .filter(col => col.title || col.links.length);
+  const primaryHref = safeHref(c.footerPrimaryUrl);
+  const secondaryHref = safeHref(c.footerSecondaryUrl);
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
-          {Object.entries(footerColumns).map(([title, items]) => (
-            <div key={title}>
-              <p className="mb-5 text-xs font-semibold uppercase tracking-[.16em] text-yellow">{title}</p>
-              {items.map(item => (
-                <a
-                  href={item.includes('@') ? 'mailto:' + item : footerRoutes[item] || '/contact'}
-                  target={item === 'WhatsApp' ? '_blank' : undefined}
-                  rel={item === 'WhatsApp' ? 'noreferrer' : undefined}
-                  key={item}
-                  className="group flex items-center justify-between border-b border-white/20 py-3 text-sm text-white/80 hover:text-white transition-colors"
-                >
-                  {item}
-                  <ArrowUpRight size={14} className="opacity-0 transition-opacity group-hover:opacity-100" />
+  return (
+    <footer className="clyx-footer" id="contact">
+      <div className="cf-inner">
+        <div className="cf-top">
+          <div>
+            <p className="cf-eyebrow">
+              <span className="cf-dot" aria-hidden="true" />
+              {c.footerEyebrow}
+            </p>
+            {c.footerEmail && <a className="cf-email" href={'mailto:' + c.footerEmail}>
+              <span>{c.footerEmail}</span>
+              <span className="cf-email-arrow" aria-hidden="true">
+                <ArrowUpRight size={22} />
+              </span>
+            </a>}
+          </div>
+          <div className="cf-top-actions">
+            {c.footerPrimaryText && (
+              <a className="cf-btn cf-btn-primary" href={primaryHref} {...targetFor(primaryHref)}>
+                {c.footerPrimaryText} <ArrowUpRight size={16} />
+              </a>
+            )}
+            {c.footerSecondaryText && (
+              <a className="cf-btn cf-btn-ghost" href={secondaryHref} {...targetFor(secondaryHref)}>
+                {c.footerSecondaryText} <ArrowUpRight size={16} />
+              </a>
+            )}
+          </div>
+        </div>
+
+        <div className="cf-main">
+          <div className="cf-brand">
+            <a href="/" className="cf-logo" aria-label="CLYX home">
+              {c.logoText}<span>.</span>
+            </a>
+            <p className="cf-tagline">{c.footerTagline}</p>
+            <div className="cf-socials">
+              {socials.map(({ label, href, Icon }) => (
+                <a key={label} className="cf-social" href={safeHref(href)} target="_blank" rel="noreferrer" aria-label={label}>
+                  <Icon size={17} />
                 </a>
               ))}
             </div>
+          </div>
+
+          {columns.map(({ title, links }, i) => (
+            <nav key={`${title}-${i}`} className="cf-col" aria-label={title}>
+              <p className="cf-col-title">{title}</p>
+              <ul>
+                {links.map(({ label, href }, j) => (
+                  <li key={`${label}-${j}`}>
+                    <a className="cf-link" href={href} {...targetFor(href)}>
+                      <span>{label}</span>
+                      <ArrowUpRight size={14} className="cf-link-arrow" aria-hidden="true" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
           ))}
         </div>
 
-        <div className="mt-16 flex flex-col justify-between gap-4 border-t border-white/20 pt-5 text-xs text-white/60 md:flex-row">
-          <span>© 2026 CLYX Media. All rights reserved.</span>
-          <div className="flex gap-5">
-            <a href="/about" className="hover:text-white transition-colors">Privacy</a>
-            <a href="/about" className="hover:text-white transition-colors">Terms</a>
+        <div className="cf-bottom">
+          <span>© {year} {c.footerCopyright}</span>
+          <div className="cf-legal">
+            {parseLinks(c.footerLegalLinks).map(({ label, href }, i) => (
+              <a key={`${label}-${i}`} href={href} {...targetFor(href)}>{label}</a>
+            ))}
           </div>
+          <button type="button" className="cf-top-btn" onClick={scrollToTop}>
+            {c.footerTopText}
+            <span aria-hidden="true"><ArrowUp size={14} /></span>
+          </button>
         </div>
+      </div>
+
+      <div className="cf-wordmark" aria-hidden="true">
+        {c.footerWordmark}
       </div>
     </footer>
   );
 }
 
 export function WhatsAppButton() {
+  const { whatsappUrl } = usePageContent('global');
+  if (!whatsappUrl) return null;
   return (
     <a
-      href="https://wa.me/919671430111"
+      href={safeHref(whatsappUrl)}
+      target="_blank"
+      rel="noreferrer"
       aria-label="Chat on WhatsApp"
       className="whatsapp-button group fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-blue text-white shadow-lg hover:bg-yellow hover:text-dark transition-all"
     >
@@ -94,6 +122,7 @@ export function WhatsAppButton() {
 }
 
 export function CookieBar() {
+  const c = usePageContent('global');
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     setVisible(localStorage.getItem('clyx-cookie-consent') !== 'accepted');
@@ -106,23 +135,23 @@ export function CookieBar() {
   return (
     <div className="cookie-consent fixed bottom-4 right-4 max-w-md z-40 rounded-2xl border border-grid bg-[color:var(--background)]/90 p-5 shadow-2xl backdrop-blur-xl transition-all">
       <p className="text-sm font-semibold tracking-tight text-foreground">
-        Cookie preferences
+        {c.cookieTitle}
       </p>
       <p className="mt-1 text-xs text-muted leading-relaxed">
-        We use cookies to make CLYX faster and track essential performance metrics.
+        {c.cookieText}
       </p>
       <div className="mt-4 flex gap-2">
         <button
           onClick={accept}
           className="border border-grid px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-foreground hover:bg-muted/10 rounded-md transition-colors"
         >
-          Essential
+          {c.cookieEssential}
         </button>
         <button
           onClick={accept}
           className="bg-yellow px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-dark hover:bg-blue hover:text-white rounded-md transition-colors"
         >
-          Accept all
+          {c.cookieAccept}
         </button>
       </div>
     </div>

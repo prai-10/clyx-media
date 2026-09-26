@@ -1,0 +1,834 @@
+import { useMemo } from 'react';
+import { useSiteContent } from '@/lib/siteContent';
+import { services } from '@/data/home';
+
+/**
+ * Every piece of page copy the admin panel can edit, grouped by website page and section.
+ * `default` is what the page shows until the admin saves something else.
+ * Each page is stored in the backend as the block `page_<id>`; a section with `block` saves to that block instead.
+ * Field keys ending in "Image" hold image URLs, keys ending in "Url" hold links and keys ending in "Links" hold
+ * one "Label | link" per line (the backend checks all three).
+ */
+export type FieldType = 'text' | 'textarea' | 'image' | 'url';
+export type FieldDef = { key: string; label: string; type?: FieldType; default: string; hint?: string };
+export type SectionDef = { id: string; title: string; description?: string; block?: string; fields: FieldDef[] };
+export type CollectionName =
+  | 'campaigns'
+  | 'caseStudies'
+  | 'team'
+  | 'testimonials'
+  | 'blog'
+  | 'careers'
+  | 'creators'
+  | 'stats'
+  | 'portfolio';
+export type PageId = 'global' | 'home' | 'about' | 'services' | 'portfolio' | 'caseStudies' | 'creators' | 'blog' | 'careers' | 'contact';
+export type PageDef = {
+  id: PageId;
+  label: string;
+  route: string;
+  blurb: string;
+  sections: SectionDef[];
+  collections: CollectionName[];
+};
+
+const t = (key: string, label: string, value: string, hint?: string): FieldDef => ({ key, label, default: value, hint });
+const long = (key: string, label: string, value: string, hint?: string): FieldDef => ({ key, label, type: 'textarea', default: value, hint });
+const img = (key: string, label: string, value: string, hint?: string): FieldDef => ({ key, label, type: 'image', default: value, hint });
+const link = (key: string, label: string, value: string, hint?: string): FieldDef => ({ key, label, type: 'url', default: value, hint });
+
+/** The hero at the top of every inner page (eyebrow, two-line title, intro card). */
+const pageHero = (eyebrow: string, title: string, highlight: string, intro: string | null): SectionDef => ({
+  id: 'hero',
+  title: 'Hero banner',
+  description: 'The first thing visitors see at the top of the page.',
+  fields: [
+    t('heroEyebrow', 'Eyebrow label', eyebrow),
+    t('heroTitle', 'Title (first line)', title),
+    t('heroHighlight', 'Title highlight (yellow second line)', highlight),
+    ...(intro === null ? [] : [long('heroIntro', 'Intro paragraph', intro)]),
+  ],
+});
+
+const LINES = 'Press Enter for a line break.';
+const ONE_PER_LINE = 'One per line.';
+const LINKS = 'One link per line, written as: Label | /page (or https://…, mailto:…, #section).';
+
+/** Adds extra fields to a section built by a helper such as pageHero. */
+const withFields = (section: SectionDef, fields: FieldDef[]): SectionDef => ({ ...section, fields: [...section.fields, ...fields] });
+
+/** `count` numbered copies of a group of fields, e.g. "Card 1 · title", "Card 2 · title", … */
+const numbered = <T,>(items: T[], build: (item: T, n: number) => FieldDef[]) => items.flatMap((item, i) => build(item, i + 1));
+
+// Six service sections on the Services page; the homepage book and the Services hero read the same fields.
+const serviceSections: SectionDef[] = services.map((s, i) => {
+  const n = i + 1;
+  return {
+    id: `service${n}`,
+    title: `Service ${n} · ${s.title}`,
+    description: 'Shown on the Services page list, the Services hero cards and the homepage services book. The icon stays the same.',
+    fields: [
+      t(`service${n}Title`, 'Name', s.title),
+      long(`service${n}Text`, 'Description', s.text),
+      long(`service${n}Points`, '“What’s included” points (homepage book)', s.points.join('\n'), ONE_PER_LINE),
+      t(`service${n}Short`, 'Short name (Services hero tab)', s.short),
+      t(`service${n}Line`, 'One-liner (Services hero card)', s.line),
+      t(`service${n}Tags`, 'Tags (Services hero card)', s.tags.join(', '), 'Separate with commas.'),
+    ],
+  };
+});
+
+export const PAGES: PageDef[] = [
+  {
+    id: 'global',
+    label: 'Header & Footer',
+    route: '/',
+    blurb: 'Navigation bar, footer, page-top buttons, WhatsApp bubble and cookie notice, shared by every page.',
+    collections: [],
+    sections: [
+      {
+        id: 'header',
+        title: 'Navigation bar',
+        fields: [
+          t('logoText', 'Logo text', 'CLYX', 'A yellow dot is added after it.'),
+          long('navLinks', 'Menu links', 'Home | /\nAbout | /about\nServices | /services\nPortfolio | /portfolio\nCase Studies | /case-studies\nCreators | /creators\nBlog | /blog\nCareers | /careers', LINKS),
+          t('headerCtaText', 'Button text', 'Start a project'),
+          link('headerCtaUrl', 'Button link', '/contact'),
+        ],
+      },
+      {
+        id: 'pageHero',
+        title: 'Page-top buttons',
+        description: 'The two buttons in the intro card at the top of the inner pages (About, Portfolio, Blog…).',
+        fields: [
+          t('heroPrimaryText', 'Primary button text', 'Book a call'),
+          link('heroPrimaryUrl', 'Primary button link', '/contact#contact-form'),
+          t('heroSecondaryText', 'Secondary button text', 'WhatsApp us'),
+          link('heroSecondaryUrl', 'Secondary button link', 'https://wa.me/919671430111'),
+        ],
+      },
+      {
+        id: 'footerTop',
+        title: 'Footer · top band',
+        fields: [
+          t('footerEyebrow', 'Eyebrow label', 'Have a brand to grow?'),
+          t('footerEmail', 'Big email address', 'work@clyxmedia.com'),
+          t('footerPrimaryText', 'Primary button text', 'Book a call'),
+          link('footerPrimaryUrl', 'Primary button link', '/contact#contact-form'),
+          t('footerSecondaryText', 'Secondary button text', 'WhatsApp us'),
+          link('footerSecondaryUrl', 'Secondary button link', 'https://wa.me/919671430111'),
+        ],
+      },
+      {
+        id: 'footerBrand',
+        title: 'Footer · brand & social',
+        fields: [
+          long('footerTagline', 'Tagline', 'The performance creative partner for brands that want to move faster than the feed.'),
+          link('instagramUrl', 'Instagram link', 'https://www.instagram.com/d2cwithclyx', 'Leave empty to hide the icon.'),
+          link('linkedinUrl', 'LinkedIn link', 'https://www.linkedin.com/company/clyxmediax/', 'Leave empty to hide the icon.'),
+        ],
+      },
+      {
+        id: 'footerColumns',
+        title: 'Footer · link columns',
+        fields: [
+          t('footerCol1Title', 'Column 1 · heading', 'Company'),
+          long('footerCol1Links', 'Column 1 · links', 'About | /about\nCreators | /creators\nCareers | /careers', LINKS),
+          t('footerCol2Title', 'Column 2 · heading', 'Work'),
+          long('footerCol2Links', 'Column 2 · links', 'Services | /services\nPortfolio | /portfolio\nCase studies | /case-studies', LINKS),
+          t('footerCol3Title', 'Column 3 · heading', 'Contact'),
+          long('footerCol3Links', 'Column 3 · links', 'work@clyxmedia.com | mailto:work@clyxmedia.com\nWhatsApp | https://wa.me/919671430111\nCalendly | /contact#contact-form', LINKS),
+        ],
+      },
+      {
+        id: 'footerBottom',
+        title: 'Footer · bottom bar',
+        fields: [
+          t('footerCopyright', 'Copyright text', 'CLYX Media. All rights reserved.', '“© <current year>” is added in front automatically.'),
+          long('footerLegalLinks', 'Small links', 'Privacy | /about\nTerms | /about\nAdmin | /admin', LINKS),
+          t('footerTopText', '“Back to top” button', 'Back to top'),
+          t('footerWordmark', 'Giant wordmark', 'CLYX'),
+        ],
+      },
+      {
+        id: 'whatsapp',
+        title: 'Floating WhatsApp bubble',
+        fields: [link('whatsappUrl', 'WhatsApp link', 'https://wa.me/919671430111', 'Leave empty to hide the bubble.')],
+      },
+      {
+        id: 'cookie',
+        title: 'Cookie notice',
+        fields: [
+          t('cookieTitle', 'Title', 'Cookie preferences'),
+          long('cookieText', 'Text', 'We use cookies to make CLYX faster and track essential performance metrics.'),
+          t('cookieEssential', 'First button', 'Essential'),
+          t('cookieAccept', 'Second button', 'Accept all'),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'home',
+    label: 'Home',
+    route: '/',
+    blurb: 'Hero, marquee, growth engine, methodology, newsletter and the closing call-to-action.',
+    collections: ['campaigns', 'stats', 'team', 'testimonials'],
+    sections: [
+      {
+        id: 'hero',
+        title: 'Hero banner',
+        description: 'The very first screen of the website.',
+        block: 'hero',
+        fields: [
+          t('eyebrow', 'Eyebrow label', 'Performance marketing • Creator ads • Web'),
+          t('headline', 'Headline', 'We turn organic clips into scaled accounts.', 'Everything after the word "into" becomes the highlighted second line.'),
+          long('sub', 'Supporting text', 'CLYX Media runs the creator whitelisting + performance engine behind brands that sell — Meta & Google ads, content, branding, and websites built for one job: conversion.'),
+        ],
+      },
+      {
+        id: 'heroButtons',
+        title: 'Hero buttons',
+        fields: [
+          t('heroPrimaryText', 'Primary button text', 'Book a Growth Call ↗'),
+          link('heroPrimaryUrl', 'Primary button link', '/contact'),
+          t('heroSecondaryText', 'Secondary button text', 'Experience 3D Engine ↓'),
+          link('heroSecondaryUrl', 'Secondary button link', '#engine'),
+        ],
+      },
+      {
+        id: 'heroTyping',
+        title: 'Hero typing words',
+        description: 'After the highlighted headline line, these phrases are typed in one after another.',
+        fields: [
+          long('heroRotating', 'Phrases', 'winning ads.\nrevenue engines.\nloyal customers.\nreal growth.', `${ONE_PER_LINE} Leave empty to turn the typing effect off.`),
+        ],
+      },
+      {
+        id: 'heroClips',
+        title: 'Hero floating clip cards',
+        description: 'The stack of five reels on the right of the hero. A card with a result is highlighted as a scaled ad.',
+        fields: numbered(
+          [
+            ['Organic Reel', '', 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600&auto=format&fit=crop'],
+            ['Organic Reel', '', 'https://images.unsplash.com/photo-1556228720-195a672e8a03?q=80&w=600&auto=format&fit=crop'],
+            ['Scaled Ad', '+312% ROAS', 'https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?q=80&w=600&auto=format&fit=crop'],
+            ['Organic Reel', '', 'https://images.unsplash.com/photo-1546435770-a3e426bf472b?q=80&w=600&auto=format&fit=crop'],
+            ['Scaled Ad', '+188% CTR', 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600&auto=format&fit=crop'],
+          ],
+          ([label, metric, image], n) => [
+            img(`clip${n}Image`, `Card ${n} · image`, image),
+            t(`clip${n}Label`, `Card ${n} · label`, label),
+            t(`clip${n}Metric`, `Card ${n} · result`, metric, 'e.g. +312% ROAS. Numbers count up. Leave empty for a plain organic card.'),
+          ],
+        ),
+      },
+      {
+        id: 'marquee',
+        title: 'Scrolling marquee strip',
+        fields: [
+          long('marqueeItems', 'Marquee items', '50+ D2C BRANDS SCALED\n₹45CR+ AD SPEND MANAGED\n3.4X AVG ROAS LIFT\n250+ CREATORS IN NETWORK\nCREATOR WHITELISTING ENGINE', 'One item per line.'),
+        ],
+      },
+      {
+        id: 'engine',
+        title: 'Growth engine (3D laptop)',
+        fields: [
+          t('engineEyebrow', 'Eyebrow label', 'Live Scaling Architecture ↓'),
+          t('engineTitle', 'Heading', 'The engine behind'),
+          t('engineHighlight', 'Heading highlight', '₹45Cr+ in revenue.'),
+          long('engineText', 'Supporting text', 'Real-time creator whitelisting paired with algorithmic Meta & Google scaling.'),
+        ],
+      },
+      {
+        id: 'dashboard',
+        title: 'Growth engine · laptop screen & badges',
+        description: 'Numbers count up when scrolled into view, e.g. “₹30 Lakh” or “68.4%”.',
+        fields: [
+          t('badge1Label', 'Left badge · label', 'BENCHMARK'),
+          t('badge1Value', 'Left badge · number', '3.4X'),
+          t('badge1Text', 'Left badge · text', 'Avg ROAS Lift'),
+          t('badge2Label', 'Right badge · label', 'NETWORK'),
+          t('badge2Value', 'Right badge · number', '250+'),
+          t('badge2Text', 'Right badge · text', 'Vetted Creators'),
+          t('dashTitle', 'Screen title', 'GROWTH COMMAND CENTER', '“CLYX” is shown in yellow before it.'),
+          t('dashLive', 'Live pill', 'LIVE ENGINE'),
+          t('dashConnected', 'Connection text', 'Meta Advantage+ Connected'),
+          ...numbered(
+            [
+              ['Blended ROAS', '3.72X', '↑ +0.6x vs target'],
+              ['30-Day Revenue', '₹30 Lakh', '↑ +42% MoM'],
+              ['Whitelisted Hooks', '48 Live', 'Across 18 Creators'],
+              ['Avg 3-Sec Retention', '68.4%', 'Industry Avg: 38%'],
+            ],
+            ([label, value, note], n) => [
+              t(`dashStat${n}Label`, `Stat ${n} · label`, label),
+              t(`dashStat${n}Value`, `Stat ${n} · number`, value),
+              t(`dashStat${n}Note`, `Stat ${n} · note`, note),
+            ],
+          ),
+          t('dashChartTitle', 'Chart title', 'Daily Attributed Revenue vs Ad Spend (Live)'),
+          t('dashChartNote', 'Chart note', 'Advantage+ Creative Optimization'),
+        ],
+      },
+      {
+        id: 'channels',
+        title: 'Channels we scale on',
+        description: 'Each channel tile keeps its icon.',
+        fields: [
+          t('channelsEyebrow', 'Eyebrow label', 'Channels We Scale On'),
+          t('channelsTitle', 'Heading', 'Every feed your buyers scroll. One team running it.'),
+          long('channelsText', 'Body text', 'Creative, media buying and conversion under one roof, so the hook that wins on Reels becomes the ad that scales on Meta and the page that closes on Shopify.'),
+          ...numbered(
+            [
+              ['Meta Ads', 'Advantage+ & creator whitelisting'],
+              ['Instagram Reels', 'UGC hooks, Stories & collabs'],
+              ['Google Ads', 'Search, PMax & Shopping'],
+              ['YouTube Shorts', 'Short-form & in-stream video'],
+              ['Shopify', 'Landing pages & CRO'],
+              ['WhatsApp', 'Retargeting & repeat flows'],
+            ],
+            ([name, detail], n) => [t(`channel${n}Name`, `Channel ${n} · name`, name), t(`channel${n}Detail`, `Channel ${n} · detail`, detail)],
+          ),
+        ],
+      },
+      {
+        id: 'services',
+        title: 'Services book',
+        description: 'The six services themselves (names, descriptions, “What’s included” points) are edited on the Services page.',
+        fields: [
+          t('servicesEyebrow', 'Eyebrow label', 'What We Run'),
+          t('servicesTitle', 'Heading', 'Six disciplines. One growth engine.'),
+          t('bookKicker', 'Cover · top-left label', 'Services'),
+          t('bookVolume', 'Cover · top-right label', 'Vol. 01'),
+          t('bookCoverText', 'Cover · tagline', 'Six disciplines.'),
+          t('bookCoverHighlight', 'Cover · tagline highlight', 'One growth engine.'),
+          t('bookIncludedLabel', 'Page · list heading', 'What’s included'),
+          t('bookNextText', 'Page · footer hint', 'Scroll to turn the page'),
+          t('bookCtaText', 'Last page · button text', 'Start a project'),
+          link('bookCtaUrl', 'Last page · button link', '/contact'),
+        ],
+      },
+      {
+        id: 'methodology',
+        title: 'Methodology',
+        fields: [
+          t('howEyebrow', 'Eyebrow label', 'The CLYX Methodology'),
+          long('howTitle', 'Heading', "A one-off post doesn't sell.\nA whitelisted ad, run on data, does.", LINES),
+          long('howText', 'Body text', "Instead of paying for a single influencer post that disappears in 24 hours, we run the creator's own organic content as a paid ad through their handle — it reads as a genuine recommendation, not a sponsored pitch, earning instant trust. From there, performance analytics decide which hooks get scaled."),
+          ...numbered(
+            [
+              ['Creator Posts Organically', 'Real handles. Authentic audience trust. Genuine reaction.'],
+              ['We Whitelist Top Clips', "Direct ads running through the creator's account with dark-post permissions."],
+              ['Data Decides The Scale', 'Spend follows verified conversion rates and ROAS, not intuition.'],
+            ],
+            ([title, text], n) => [t(`step${n}Title`, `Step ${n} · title`, title), long(`step${n}Text`, `Step ${n} · text`, text)],
+          ),
+        ],
+      },
+      {
+        id: 'campaigns',
+        title: 'Featured campaigns carousel',
+        description: 'The campaign cards themselves are managed in the Campaigns list below.',
+        fields: [t('campaignsLabel', 'Section label', 'FEATURED CAMPAIGNS')],
+      },
+      {
+        id: 'team',
+        title: 'Leadership section',
+        description: 'People are managed in the Team list below.',
+        fields: [
+          t('teamEyebrow', 'Eyebrow label', 'Leadership'),
+          t('teamTitle', 'Heading', 'The people behind your growth.'),
+          long('teamText', 'Intro text', 'You collaborate directly with senior partners who have scaled eight-figure ad spend across high-growth categories.'),
+        ],
+      },
+      {
+        id: 'testimonials',
+        title: 'Testimonials section',
+        description: 'Quotes are managed in the Testimonials list below.',
+        fields: [t('testimonialsEyebrow', 'Eyebrow label', 'Client Results'), t('testimonialsTitle', 'Heading', 'What D2C founders say about CLYX.')],
+      },
+      {
+        id: 'newsletter',
+        title: 'Newsletter strip',
+        fields: [
+          t('newsletterEyebrow', 'Eyebrow label', 'Stay ahead'),
+          t('newsletterTitle', 'Heading', 'One email a month. No fluff.'),
+          long('newsletterText', 'Body text', 'Actionable breakdowns of whitelisted creator campaigns, Meta ad teardowns, and creative frameworks that scale.'),
+          t('newsletterPlaceholder', 'Email box placeholder', 'you@brand.com'),
+          t('newsletterButton', 'Button text', 'Subscribe'),
+        ],
+      },
+      {
+        id: 'cta',
+        title: 'Closing call-to-action',
+        fields: [
+          t('ctaEyebrow', 'Eyebrow label', 'Growth audit'),
+          t('ctaTitle', 'Heading', 'Ready to turn your creators into'),
+          t('ctaHighlight', 'Heading highlight', 'scalable ad accounts?'),
+          long('ctaText', 'Body text', "We'll audit your Meta/Google ad accounts and creator pipeline, then map out a 90-day scaling roadmap for your brand."),
+          t('ctaPrimaryText', 'Primary button text', 'Book a Growth Call'),
+          link('ctaPrimaryUrl', 'Primary button link', 'https://wa.me/919671430111'),
+          t('ctaSecondaryText', 'Secondary button text', 'Email Founders'),
+          link('ctaSecondaryUrl', 'Secondary button link', 'mailto:hello@clyxmedia.com?subject=Growth Consultation - CLYX Media'),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'about',
+    label: 'About',
+    route: '/about',
+    blurb: 'Story, principles band and the leadership team.',
+    collections: ['team'],
+    sections: [
+      pageHero(
+        'About CLYX',
+        'Culture creates',
+        'the opening.',
+        'CLYX is a performance creative studio for brands that want to move faster than the feed. We connect creator instinct, paid distribution, and the systems that make growth repeatable.',
+      ),
+      {
+        id: 'intro',
+        title: 'Intro statement',
+        fields: [
+          t('introLabel', 'Label', 'Built for the brave'),
+          long('introTitle', 'Heading', 'The ad should feel like culture. The result should feel like math.'),
+          long('introText', 'Body text', 'Most agencies choose between creative and performance. We do not. CLYX connects the instinct that makes people stop with the systems that make brands grow.'),
+        ],
+      },
+      {
+        id: 'values',
+        title: 'Principles band (yellow)',
+        fields: [
+          t('valuesEyebrow', 'Eyebrow label', 'How we work'),
+          long('valuesTitle', 'Heading', 'Three principles.\nZero fluff.', LINES),
+          long('valuesIntro', 'Intro text', 'The rules every brief, creative and campaign at CLYX runs on, from the first call to the tenth scaled ad.'),
+          t('value1Tag', 'Card 1 · tag', 'How we talk'),
+          t('value1Title', 'Card 1 · title', 'Directness'),
+          long('value1Text', 'Card 1 · text', 'Senior partners, clear thinking, no unnecessary layers.'),
+          t('value2Tag', 'Card 2 · tag', 'How we create'),
+          t('value2Title', 'Card 2 · title', 'Instinct'),
+          long('value2Text', 'Card 2 · text', 'Creative that earns attention before it asks for action.'),
+          t('value3Tag', 'Card 3 · tag', 'How we scale'),
+          t('value3Title', 'Card 3 · title', 'Iteration'),
+          long('value3Text', 'Card 3 · text', 'Every winning hook becomes a system, not a one-off.'),
+        ],
+      },
+      {
+        id: 'leadership',
+        title: 'Leadership section',
+        description: 'People are managed in the Team list below.',
+        fields: [
+          t('leadEyebrow', 'Eyebrow label', 'Leadership'),
+          t('leadTitle', 'Heading', 'Small team.'),
+          t('leadHighlight', 'Heading highlight', 'Direct access.'),
+          t('leadCardTitle', 'Access card title', 'You work with the people who build the work.'),
+          t('leadLive', 'Access card live tag', 'Direct line'),
+          t('leadCardButton', 'Access card button', 'Talk to a founder'),
+          link('leadCardButtonUrl', 'Access card button link', '/contact'),
+          t('leadTeamLabel', 'Team list label', 'The team'),
+          t('leadJoinText', 'Team list link text', 'Join us'),
+          link('leadJoinUrl', 'Team list link', '/careers'),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'services',
+    label: 'Services',
+    route: '/services',
+    blurb: 'The six disciplines, the operating principle and the services call-to-action.',
+    collections: [],
+    sections: [
+      withFields(pageHero('Services', 'One growth engine.', 'Six disciplines.', null), [
+        t('heroNote', 'Handwritten note above the cards', 'all six, under one roof'),
+      ]),
+      {
+        id: 'list',
+        title: 'Services list',
+        description: 'Heading above the six service rows. Each service is edited in its own section below.',
+        fields: [t('listEyebrow', 'Eyebrow label', 'What we run'), t('listTitle', 'Heading', 'Strategy into systems.')],
+      },
+      ...serviceSections,
+      {
+        id: 'principle',
+        title: 'Operating principle (yellow)',
+        fields: [
+          t('opEyebrow', 'Eyebrow label', 'The operating principle'),
+          t('opTitle', 'Heading', 'Make the creative'),
+          t('opHighlight', 'Heading highlight', 'measurable.'),
+          long('opText', 'Body text', 'We build a feedback loop between what makes people stop and what makes them convert. That loop is where growth compounds.'),
+          t('opStep1Title', 'Step 1 · title', 'Test hooks, not hunches.'),
+          t('opStep1Text', 'Step 1 · text', 'Every creative starts as a hypothesis.'),
+          t('opStep2Title', 'Step 2 · title', 'Keep what stops the scroll.'),
+          t('opStep2Text', 'Step 2 · text', 'Hook rate and watch time decide what stays.'),
+          t('opStep3Title', 'Step 3 · title', 'Put budget behind proof.'),
+          t('opStep3Text', 'Step 3 · text', 'Spend follows ROAS, not opinions.'),
+          t('opNote', 'Handwritten note', 'the whole game, really'),
+          long('opCore', 'Loop centre text', 'Growth\ncompounds', LINES),
+          t('opLoop1', 'Loop · top', 'Stop the scroll'),
+          t('opLoop2', 'Loop · right', 'Click'),
+          t('opLoop3', 'Loop · bottom', 'Convert'),
+          t('opLoop4', 'Loop · left', 'Learn'),
+        ],
+      },
+      {
+        id: 'cta',
+        title: 'Call-to-action card',
+        description: 'Team names and initials come from the Team list (About page).',
+        fields: [
+          t('ctaEyebrow', 'Eyebrow label', 'Need a sharper system?'),
+          t('ctaTitle', 'Heading', 'Let’s find the'),
+          t('ctaHighlight', 'Heading highlight', 'next lever.'),
+          long('ctaText', 'Body text', 'Tell us what’s stuck: creative, spend or conversion. You’ll talk to the people who’d actually do the work, not a sales rep.'),
+          t('ctaTeamNote', 'Text after the team names', 'read every message themselves.'),
+          t('ctaButton', 'Button text', 'Start a project'),
+          link('ctaButtonUrl', 'Button link', '/contact#contact-form'),
+          t('ctaWhatsappText', 'WhatsApp button text', 'Say hi on WhatsApp'),
+          link('ctaWhatsappUrl', 'WhatsApp link', 'https://wa.me/919671430111'),
+        ],
+      },
+      {
+        id: 'chat',
+        title: 'Mini chat (inside the call-to-action)',
+        fields: [
+          t('chatScribble', 'Handwritten hint', 'psst… tap one'),
+          t('chatStatus', 'Status under the name', 'Usually replies same day'),
+          t('chatGreeting', 'First message', 'Hey 👋 I’m {name}.', '{name} becomes the first name of the first team member.'),
+          t('chatQuestion', 'Second message', 'What’s slowing your growth right now?'),
+          ...numbered(
+            [
+              ['My ads stopped scaling', 'Usually that’s creative fatigue, not budget. We’d start by testing fresh hooks before touching spend.'],
+              ['Need creators who convert', 'We’ll shortlist creators matched to your category and lock usage rights, so the best clips can run as ads.'],
+              ['Site isn’t converting', 'Let’s look at speed and the first scroll together. Most leaks show up above the fold.'],
+              ['Not sure yet', 'Totally fine. Hop on a 30-min call and we’ll map where the growth is hiding. No pitch deck.'],
+            ],
+            ([label, reply], n) => [t(`topic${n}Label`, `Quick reply ${n}`, label), long(`topic${n}Reply`, `Quick reply ${n} · answer`, reply)],
+          ),
+          t('chatContinue', 'Continue button', 'Continue on WhatsApp'),
+          t('chatAgain', 'Restart button', 'Pick another'),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'portfolio',
+    label: 'Portfolio',
+    route: '/portfolio',
+    blurb: 'The filterable project showcase and the case-studies call-to-action.',
+    collections: ['portfolio'],
+    sections: [
+      pageHero('Portfolio', 'Proof, not', 'promises.', 'A selection of the systems, campaigns, and storefronts we have built to turn attention into measurable growth.'),
+      {
+        id: 'cta',
+        title: 'Case-studies call-to-action (blue)',
+        fields: [
+          t('ctaLabel', 'Label', 'Want the long version?'),
+          t('ctaTitle', 'Heading', 'See how the'),
+          t('ctaHighlight', 'Heading highlight', 'work works.'),
+          t('ctaButton', 'Button text', 'Request case studies'),
+          link('ctaButtonUrl', 'Button link', '/contact'),
+          t('ctaNote', 'Handwritten note', 'the real numbers live here'),
+          t('ctaBadge', 'Spinning badge text', 'case studies • real results •'),
+          t('ctaIncludesTitle', 'Checklist heading', 'Inside every case study'),
+          long('ctaIncludes', 'Checklist items', 'The brief & starting numbers\nCreative that moved the metric\nSpend, ROAS & next steps', ONE_PER_LINE),
+          t('ctaStat1Value', 'Floating chip 1 · result', '3.4x ROAS'),
+          t('ctaStat1Label', 'Floating chip 1 · brand', 'Kulture Skin'),
+          t('ctaStat2Value', 'Floating chip 2 · result', '+188% CTR'),
+          t('ctaStat2Label', 'Floating chip 2 · brand', 'Aura Collective'),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'caseStudies',
+    label: 'Case Studies',
+    route: '/case-studies',
+    blurb: 'Expanding case-study showcase and the recurring-pattern band.',
+    collections: ['caseStudies'],
+    sections: [
+      pageHero('Case studies', 'The work behind', 'the movement.', 'Real brands, real constraints, real growth systems. Explore how CLYX turns creative instinct into measurable momentum.'),
+      {
+        id: 'pattern',
+        title: 'Recurring pattern band (yellow)',
+        fields: [
+          t('patternLabel', 'Label', 'The recurring pattern'),
+          long('patternTitle', 'Heading', 'Find the signal.\nScale the signal.', LINES),
+          long('patternText', 'Body text', 'The best results rarely come from one perfect post. They come from building a system that knows what to keep, what to cut, and what to try next.'),
+          t('patternStep1Tag', 'Card 1 · tag', 'Keep'),
+          t('patternStep1Title', 'Card 1 · title', 'Double down on what holds.'),
+          long('patternStep1Text', 'Card 1 · text', 'Hooks that stop the scroll and convert cheaply earn more budget, fast.'),
+          t('patternStep2Tag', 'Card 2 · tag', 'Cut'),
+          t('patternStep2Title', 'Card 2 · title', 'Retire what stalls.'),
+          long('patternStep2Text', 'Card 2 · text', 'Creative that loses attention in the first seconds stops spending money.'),
+          t('patternStep3Tag', 'Card 3 · tag', 'Try next'),
+          t('patternStep3Title', 'Card 3 · title', 'Seed the next angle.'),
+          long('patternStep3Text', 'Card 3 · text', 'Every winner spins off new variations, so the testing pipeline never runs dry.'),
+          t('caseOutcomeLabel', 'Result label inside each case study', 'Verified Scale Outcome'),
+          t('caseButton', 'Button inside each case study', 'Request Case Breakdown'),
+          link('caseButtonUrl', 'Button link inside each case study', '/contact'),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'creators',
+    label: 'Creators',
+    route: '/creators',
+    blurb: 'Creator network story, the parallax talent gallery and creator types.',
+    collections: ['creators'],
+    sections: [
+      pageHero('Creators', 'People make', 'the difference.', 'Our creator network is built for relevance, not reach alone. We match the right voice to the right category, then give the best content room to travel.'),
+      {
+        id: 'feature',
+        title: 'Intro feature',
+        fields: [
+          t('featureTag', 'Card tag', 'CREATOR / CLYX'),
+          long('featureCardTitle', 'Card heading', 'The feed is a conversation.'),
+          img('featureImage', 'Card background image', '', 'Optional. Leave empty for the plain yellow card.'),
+          t('featureLabel', 'Label', 'Why creators work with us'),
+          t('featureTitle', 'Heading', 'No vanity metrics.'),
+          t('featureHighlight', 'Heading highlight', 'Just better work.'),
+          long('featureText', 'Body text', 'We protect the creator voice while making the brief, usage rights, production, and paid distribution clear from day one.'),
+          t('featureButton', 'Button text', 'Join the network'),
+          link('featureButtonUrl', 'Button link', '/contact'),
+        ],
+      },
+      {
+        id: 'gallery',
+        title: 'Talent gallery',
+        description: 'Gallery photos come from the Creators list below.',
+        fields: [
+          t('galleryEyebrow', 'Eyebrow label', 'Creator Bench in Motion'),
+          t('galleryTitle', 'Heading', 'The Faces Behind Scaled Accounts'),
+          t('galleryText', 'Supporting text', 'Scroll through our multi-column parallax talent gallery.'),
+        ],
+      },
+      {
+        id: 'types',
+        title: 'Creator types (blue band)',
+        fields: [
+          t('typesEyebrow', 'Eyebrow label', 'Who we cast'),
+          t('typesTitle', 'Heading', 'Three voices.'),
+          t('typesHighlight', 'Heading highlight', 'One brief.'),
+          long('typesIntro', 'Intro text', 'Every campaign needs attention, belief, and a reason to buy. We cast creators for each job, so the content does all three.'),
+          t('type1Tag', 'Type 1 · tag', 'Attention'),
+          t('type1Title', 'Type 1 · title', 'The Hook'),
+          long('type1Text', 'Type 1 · text', 'Creators who know how to stop the scroll in the first two seconds.'),
+          t('type2Tag', 'Type 2 · tag', 'Belief'),
+          t('type2Title', 'Type 2 · title', 'The Trust'),
+          long('type2Text', 'Type 2 · text', 'Authentic voices with genuine relationships to their audiences.'),
+          t('type3Tag', 'Type 3 · tag', 'Desire'),
+          t('type3Title', 'Type 3 · title', 'The Proof'),
+          long('type3Text', 'Type 3 · text', 'Creative minds who make your product look organic, lived-in, and irresistible.'),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'blog',
+    label: 'Blog',
+    route: '/blog',
+    blurb: 'Journal articles and the dispatch sign-up band.',
+    collections: ['blog'],
+    sections: [
+      pageHero('Journal', 'Ideas that', 'move.', 'Notes on creator culture, performance creative, conversion, and the systems that turn attention into momentum.'),
+      {
+        id: 'dispatch',
+        title: 'Dispatch band (blue)',
+        fields: [
+          t('dispatchLabel', 'Label', 'The CLYX dispatch'),
+          t('dispatchTitle', 'Heading', 'Keep your edge.'),
+          t('dispatchIntro', 'Intro', 'One sharp read every fortnight on creator ads, performance creative and what is actually working in the feed.'),
+          t('dispatchPerk1', 'Chip 1', 'Every fortnight'),
+          t('dispatchPerk2', 'Chip 2', '5-min read'),
+          t('dispatchPerk3', 'Chip 3', 'Zero fluff'),
+          t('dispatchLatest', 'Latest-post card label', 'Latest issue', 'The card shows the first post from the Blog list.'),
+          t('dispatchButton', 'Button text', 'Subscribe to the dispatch'),
+          link('dispatchUrl', 'Button link', '/contact'),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'careers',
+    label: 'Careers',
+    route: '/careers',
+    blurb: 'How the team works, open roles and the three team values.',
+    collections: ['careers'],
+    sections: [
+      withFields(pageHero('Careers', 'Come build', 'the next edge.', null), [
+        long('heroNote', 'Handwritten note (right side)', "Nobody here was hired for a job title.\nWe were hired for the itch to make things better than they need to be. Bring your curiosity, your taste and a little stubbornness, and we will bring the room to run with it.", `${LINES} Leave empty to hide the note.`),
+        t('heroSign', 'Note signature', '— team CLYX'),
+      ]),
+      {
+        id: 'how',
+        title: 'How we work',
+        fields: [
+          t('howLabel', 'Label', 'How we work'),
+          t('howTitle', 'Heading', 'Small team.'),
+          t('howHighlight', 'Heading highlight', 'Big responsibility.'),
+          long('howText1', 'Paragraph 1', 'You will work close to founders, creators, and the numbers. You will see the idea through from first brief to final result.'),
+          long('howText2', 'Paragraph 2', 'We care about taste, pace, candour, and doing the version that is difficult to fake.'),
+        ],
+      },
+      {
+        id: 'roles',
+        title: 'Open roles band',
+        description: 'Roles are managed in the Careers list below.',
+        fields: [
+          t('rolesLabel', 'Label', 'Open roles'),
+          t('rolesTitle', 'Heading', 'Find your seat'),
+          t('rolesHighlight', 'Heading highlight', 'at the table.'),
+          long('rolesNote', 'Footer note', 'Don’t see your role? Send us the work you are proudest of anyway.'),
+          t('rolesNoteLink', 'Footer link text', 'Get in touch'),
+          link('applyUrl', 'Footer link (Get in touch)', 'mailto:work@clyxmedia.com?subject=Careers'),
+        ],
+      },
+      {
+        id: 'values',
+        title: 'Team values',
+        fields: [
+          t('valuesLabel', 'Label', 'What we value'),
+          t('valuesTitle', 'Heading', 'Three rules we'),
+          t('valuesHighlight', 'Heading highlight', 'actually live by.'),
+          long('valuesIntro', 'Intro', 'Not a poster on the wall. These are the standards we hire for, review against, and hold each other to every week.'),
+          t('value1', 'Value 1', 'Do the work.'),
+          long('value1Text', 'Value 1 · text', 'No shortcuts dressed up as strategy. We ship, measure, and let the results do the talking.'),
+          t('value2', 'Value 2', 'Say the thing.'),
+          long('value2Text', 'Value 2 · text', 'Candour over comfort. If an idea is weak or a number is off, we say it early and kindly.'),
+          t('value3', 'Value 3', 'Make it better.'),
+          long('value3Text', 'Value 3 · text', 'Every brief leaves sharper than it arrived. Good is the starting line, not the finish.'),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'contact',
+    label: 'Contact',
+    route: '/contact',
+    blurb: 'Contact details, enquiry form and the three-step band.',
+    collections: [],
+    sections: [
+      pageHero('Contact', 'Let’s make', 'something move.', 'Tell us what you are building, what is stuck, and where you want to go next. We will get back to you with a sharper point of view.'),
+      {
+        id: 'details',
+        title: 'Contact details',
+        fields: [
+          t('detailsLabel', 'Label', 'Start a conversation'),
+          t('email', 'Email address', 'work@clyxmedia.com'),
+          t('whatsappLabel', 'WhatsApp label', 'WhatsApp'),
+          link('whatsappUrl', 'WhatsApp link', 'https://wa.me/919876543210'),
+          t('calendlyLabel', 'Booking label', 'Calendly'),
+          link('calendlyUrl', 'Booking link', '#contact-form'),
+        ],
+      },
+      {
+        id: 'form',
+        title: 'Enquiry form',
+        fields: [
+          t('formName', 'Name box placeholder', 'Your name'),
+          t('formEmail', 'Email box placeholder', 'Work email'),
+          t('formCompany', 'Company box placeholder', 'Company / brand'),
+          t('formMessage', 'Message box placeholder', 'What are you trying to move?'),
+          t('formButton', 'Button text', 'Send enquiry'),
+          t('formSent', 'Button text after sending', 'Message sent'),
+        ],
+      },
+      {
+        id: 'steps',
+        title: 'Three-step band (yellow)',
+        fields: [t('step1', 'Step 1', 'Clear brief.'), t('step2', 'Step 2', 'Sharp thinking.'), t('step3', 'Step 3', 'Real movement.')],
+      },
+    ],
+  },
+];
+
+export const pageById = (id: PageId) => PAGES.find((p) => p.id === id)!;
+
+/** The block a section saves to. */
+export const sectionBlock = (page: PageDef, section: SectionDef) => section.block ?? `page_${page.id}`;
+
+const defaultsCache = new Map<PageId, Record<string, string>>();
+
+/**
+ * Built-in copy for one page, keyed by field. Built once per page and shared (sections use it as a default prop
+ * on every render), so treat the result as read-only.
+ */
+export function pageDefaults(id: PageId): Record<string, string> {
+  let out = defaultsCache.get(id);
+  if (out) return out;
+  out = {};
+  const page = pageById(id);
+  for (const section of page.sections) {
+    if (sectionBlock(page, section) !== `page_${id}`) continue;
+    for (const field of section.fields) out[field.key] = field.default;
+  }
+  defaultsCache.set(id, out);
+  return out;
+}
+
+/** Built-in copy of one section, e.g. the homepage hero that saves to its own block. */
+export function sectionDefaults(pageId: PageId, sectionId: string): Record<string, string> {
+  const section = pageById(pageId).sections.find((s) => s.id === sectionId);
+  return Object.fromEntries((section?.fields ?? []).map((field) => [field.key, field.default]));
+}
+
+/** The page's copy: what the admin saved, and the built-in text for anything never saved. */
+export function usePageContent(id: PageId): Record<string, string> {
+  const { data } = useSiteContent();
+  const saved = data?.blocks?.[`page_${id}`];
+  // Same object until the saved copy changes, so sections receiving it do not redo work on unrelated renders.
+  return useMemo(() => {
+    const out = { ...pageDefaults(id) };
+    for (const [key, value] of Object.entries(saved ?? {})) if (typeof value === 'string') out[key] = value;
+    return out;
+  }, [id, saved]);
+}
+
+/** Non-empty trimmed lines of a multi-line field. */
+export const splitLines = (text: string | undefined) => (text ?? '').split('\n').map((s) => s.trim()).filter(Boolean);
+
+/** Only links a visitor can safely follow; anything else (e.g. javascript:) becomes "#". */
+export const safeHref = (href: string | undefined) => {
+  const value = (href ?? '').trim();
+  return /^(https?:\/\/|mailto:|tel:|\/|#)/i.test(value) ? value : '#';
+};
+
+export const isExternalHref = (href: string) => /^https?:\/\//i.test(href);
+
+/** A "Links" field ("Label | link" per line) as { label, href } pairs. A line without "|" links to nothing. */
+export function parseLinks(text: string | undefined): { label: string; href: string }[] {
+  return splitLines(text).map((line) => {
+    const bar = line.indexOf('|');
+    if (bar === -1) return { label: line, href: '#' };
+    return { label: line.slice(0, bar).trim(), href: safeHref(line.slice(bar + 1)) };
+  });
+}
+
+/**
+ * The six services as edited on the Services page. `iconKey` is the original name, so a renamed service keeps its icon.
+ * Used by the homepage services book, the Services page list and the Services hero cards.
+ */
+export function useServices() {
+  const c = usePageContent('services');
+  return useMemo(
+    () =>
+      services.map((s, i) => {
+        const n = i + 1;
+        return {
+          iconKey: s.title,
+          index: s.index,
+          title: c[`service${n}Title`] || s.title,
+          text: c[`service${n}Text`] ?? s.text,
+          points: splitLines(c[`service${n}Points`]),
+          short: c[`service${n}Short`] || c[`service${n}Title`] || s.short,
+          line: c[`service${n}Line`] ?? s.line,
+          tags: (c[`service${n}Tags`] ?? '').split(',').map((tag) => tag.trim()).filter(Boolean),
+        };
+      }),
+    [c],
+  );
+}
+
+export type ServiceContent = ReturnType<typeof useServices>[number];

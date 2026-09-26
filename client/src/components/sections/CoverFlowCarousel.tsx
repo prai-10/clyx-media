@@ -74,6 +74,15 @@ export const clyxCampaigns: CampaignItem[] = [
     ctaText: "View Case Study",
     ctaUrl: "/case-studies",
   },
+  {
+    tag: "#BRAND LAUNCH",
+    titleLine1: "LUMEN WEAR",
+    titleLine2: "2.8X FIRST-MONTH ROAS",
+    desc: "Launched a fashion label from zero with creator-led drops and full-funnel Meta ads.",
+    img: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1000&q=85",
+    ctaText: "View Case Study",
+    ctaUrl: "/case-studies",
+  },
 ];
 
 export interface CoverFlowCarouselProps {
@@ -95,8 +104,31 @@ export default function CoverFlowCarousel({
 }: CoverFlowCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [isOnScreen, setIsOnScreen] = useState(false);
+  const [isTabVisible, setIsTabVisible] = useState(() => typeof document === "undefined" || !document.hidden);
+  const sectionRef = useRef<HTMLElement>(null);
   const touchStartX = useRef(0);
   const total = items.length;
+
+  // Autoplay only runs while someone can see the carousel, so it doesn't re-render the section
+  // (and swap the blurred background image) every few seconds while the visitor is elsewhere.
+  useEffect(() => {
+    const node = sectionRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") {
+      setIsOnScreen(true);
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => setIsOnScreen(entry.isIntersecting));
+    observer.observe(node);
+    return () => observer.disconnect();
+    // The section is not rendered without items, so observe again once the first ones arrive.
+  }, [total > 0]);
+
+  useEffect(() => {
+    const onVisibility = () => setIsTabVisible(!document.hidden);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
 
   useEffect(() => {
     if (currentIndex >= total) setCurrentIndex(0);
@@ -115,10 +147,10 @@ export default function CoverFlowCarousel({
   };
 
   useEffect(() => {
-    if (!autoplay || isHovered || total <= 1) return;
+    if (!autoplay || isHovered || !isOnScreen || !isTabVisible || total <= 1) return;
     const interval = setInterval(nextSlide, autoplayDelay);
     return () => clearInterval(interval);
-  }, [autoplay, autoplayDelay, isHovered, nextSlide, total]);
+  }, [autoplay, autoplayDelay, isHovered, isOnScreen, isTabVisible, nextSlide, total]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -145,6 +177,7 @@ export default function CoverFlowCarousel({
 
   return (
     <section
+      ref={sectionRef}
       id={id}
       className={`relative w-full min-h-[720px] flex items-center justify-center overflow-hidden py-16 select-none bg-[#050505] text-white border-b border-grid ${className}`}
       onMouseEnter={() => setIsHovered(true)}
@@ -179,7 +212,7 @@ export default function CoverFlowCarousel({
       <div className="relative w-full max-w-6xl mx-auto px-4 z-10 flex flex-col items-center">
         {/* Eyebrow */}
         {sectionLabel && (
-          <div className="flex items-center gap-3 mb-8">
+          <div className="flex items-center gap-3 mb-8 md:-translate-x-4">
             <span style={{ width: "36px", height: "1px", background: "linear-gradient(90deg, transparent, #FFDE59)" }} />
             <h3
               className="text-xs font-bold uppercase tracking-[0.3em] text-[#FFDE59] m-0"
@@ -192,7 +225,7 @@ export default function CoverFlowCarousel({
 
         {/* 3D Coverflow Stage */}
         <div
-          className="relative w-full h-[480px] md:h-[520px] flex justify-center items-center mb-8"
+          className="relative w-full h-[430px] md:h-[460px] flex justify-center items-center mb-8 md:-translate-x-4"
           style={{ perspective: "1400px" }}
         >
           {items.map((item, idx) => {
@@ -211,22 +244,22 @@ export default function CoverFlowCarousel({
               zIndex = 30;
               filter = "brightness(1)";
             } else if (offset === 1) {
-              transform = "translateX(280px) scale(0.84) rotateY(-24deg)";
+              transform = "translateX(245px) scale(0.84) rotateY(-24deg)";
               opacity = 0.65;
               zIndex = 20;
               filter = "brightness(0.75)";
             } else if (offset === 2) {
-              transform = "translateX(490px) scale(0.68) rotateY(-38deg)";
+              transform = "translateX(430px) scale(0.68) rotateY(-38deg)";
               opacity = 0.38;
               zIndex = 10;
               filter = "brightness(0.55) blur(1px)";
             } else if (offset === total - 1) {
-              transform = "translateX(-280px) scale(0.84) rotateY(24deg)";
+              transform = "translateX(-245px) scale(0.84) rotateY(24deg)";
               opacity = 0.65;
               zIndex = 20;
               filter = "brightness(0.75)";
             } else if (offset === total - 2) {
-              transform = "translateX(-490px) scale(0.68) rotateY(38deg)";
+              transform = "translateX(-430px) scale(0.68) rotateY(38deg)";
               opacity = 0.38;
               zIndex = 10;
               filter = "brightness(0.55) blur(1px)";
@@ -238,8 +271,8 @@ export default function CoverFlowCarousel({
                 onClick={() => !isCenter && goToSlide(idx)}
                 style={{
                   position: "absolute",
-                  width: "320px",
-                  height: "480px",
+                  width: "280px",
+                  height: "420px",
                   borderRadius: "20px",
                   overflow: "hidden",
                   backgroundColor: "#0d0d0d",
@@ -354,7 +387,7 @@ export default function CoverFlowCarousel({
 
                     <a
                       href={item.ctaUrl || "/case-studies"}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-yellow text-dark text-xs font-bold uppercase tracking-wider hover:bg-blue hover:text-white transition-colors"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-yellow text-black! text-xs font-bold uppercase tracking-wider hover:bg-blue hover:text-white! transition-colors"
                     >
                       <span>{item.ctaText || "View Case Study"}</span>
                       <ArrowRightIcon />
@@ -384,7 +417,7 @@ export default function CoverFlowCarousel({
         </button>
 
         {/* Pagination Dots */}
-        <div className="flex items-center justify-center gap-2 z-30">
+        <div className="flex items-center justify-center gap-2 z-30 md:-translate-x-4">
           {items.map((_, idx) => (
             <button
               key={idx}

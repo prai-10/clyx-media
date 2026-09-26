@@ -37,7 +37,9 @@ export function useSiteContent() {
   return useQuery({
     queryKey: ['site-content'],
     queryFn: fetchSiteContent,
-    staleTime: 15_000,
+    // Every page load still revalidates (the cached copy is marked stale), but switching back to the tab
+    // only refetches once a minute has passed instead of on nearly every focus.
+    staleTime: 60_000,
     refetchOnWindowFocus: true,
     retry: 1,
     initialData: readCache,
@@ -65,5 +67,8 @@ export function useCollection<T>(
 /** A single record such as the homepage hero. Missing fields fall back to `fallback`. */
 export function useBlock<T extends Record<string, any>>(name: string, fallback: T): T {
   const { data } = useSiteContent();
-  return { ...fallback, ...(data?.blocks?.[name] ?? {}) };
+  const saved = data?.blocks?.[name];
+  // `fallback` is usually an inline literal, so only the saved block is tracked.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => ({ ...fallback, ...(saved ?? {}) }), [saved]);
 }

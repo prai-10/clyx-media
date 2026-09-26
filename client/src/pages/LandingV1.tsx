@@ -1,23 +1,89 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import Header from '../components/layout/Header';
 import { Footer, WhatsAppButton, CookieBar } from '../components/layout/Footer';
 import CoverFlowCarousel, { clyxCampaigns, type CampaignItem } from '../components/sections/CoverFlowCarousel';
-import ServiceGrid from '../components/sections/ServiceGrid';
+import ServiceBook from '../components/sections/ServiceBook';
 import HowSteps from '../components/sections/HowSteps';
-import StatsCounterStrip from '../components/sections/StatsCounterStrip';
-import { useCollection, useSiteContent } from '@/lib/siteContent';
+import ChannelStrip from '../components/sections/ChannelStrip';
+import HeroTypewriter from '../components/sections/HeroTypewriter';
+import TeamMarquee from '../components/sections/TeamMarquee';
+import TestimonialMarquee from '../components/sections/TestimonialMarquee';
+import { useBlock, useCollection } from '@/lib/siteContent';
+import { safeHref, sectionDefaults, splitLines, usePageContent } from '@/lib/pageContent';
+import { Lines } from '@/components/ui/Lines';
+import { markIntroLoaderPlayed, shouldPlayIntroLoader } from '@/lib/introLoader';
+import { useLandingMotion } from '@/hooks/useLandingMotion';
 import '../styles/landing-v1.css';
-import '../styles/landing-v1-js-globals.css';
-import '../styles/shared-footer.css';
+
+const COUNT_MS = 1800;
+const NUMBER = /^(\D*?)(\d+(?:\.\d+)?)(.*)$/;
+
+// "₹30 Lakh" counts up from zero (prefix "₹", target 30, suffix " Lakh") the first time it scrolls into view.
+// The span is keyed by the value, so edited copy mounts a fresh span and counts again.
+function Counter({ value, className, style }: { value: string; className?: string; style?: React.CSSProperties }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const isNumber = NUMBER.test(value);
+
+  useEffect(() => {
+    const el = ref.current;
+    const parts = NUMBER.exec(value);
+    if (!el || !parts || typeof IntersectionObserver === 'undefined') return;
+    const [, prefix, number, suffix] = parts;
+    const target = parseFloat(number);
+    const decimals = (number.split('.')[1] || '').length;
+    let frame = 0;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      observer.disconnect();
+      let start = 0;
+      const step = (now: number) => {
+        if (!start) start = now;
+        const p = Math.min((now - start) / COUNT_MS, 1);
+        const eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = `${prefix}${(p < 1 ? target * eased : target).toFixed(decimals)}${suffix}`;
+        if (p < 1) frame = requestAnimationFrame(step);
+      };
+      frame = requestAnimationFrame(step);
+    }, { threshold: 0.25 });
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [value]);
+
+  if (!isNumber) return <span className={className} style={style}>{value}</span>;
+  return (
+    <span key={value} ref={ref} className={className ? `${className} counter` : 'counter'} style={style}>
+      {value}
+    </span>
+  );
+}
+
+// Parallax depth of each hero clip card (read by useLandingMotion).
+const CLIP_DEPTHS = ['0.04', '0.07', '0.10', '0.06', '0.09'];
+// How long the intro loader stays before sliding away.
+const LOADER_MS = 1450;
+const HERO_DEFAULTS = sectionDefaults('home', 'hero');
 
 export default function LandingV1() {
-  // Hero, stats, team and testimonials are rendered by the legacy /js scripts from window.CLYX_DATA.
-  // CMS content is copied into CLYX_DATA before main.js starts, and again whenever it changes.
-  const { data: siteContent } = useSiteContent();
-  const contentRef = useRef(siteContent);
-  contentRef.current = siteContent;
-  const appliedRef = useRef<typeof siteContent>(undefined);
-  const [scriptsReady, setScriptsReady] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [showLoader] = useState(shouldPlayIntroLoader);
+  const [loaderDone, setLoaderDone] = useState(false);
+  const c = usePageContent('home');
+  const hero = useBlock('hero', HERO_DEFAULTS);
+  // "We turn organic clips into scaled accounts." -> first line, then "into" + the highlighted (typed) phrase.
+  const [heroLine1, ...heroRest] = String(hero.headline || '').split(/\s+into\s+/i);
+  const heroLine2 = heroRest.join(' into ');
+  const heroPhrases = useMemo(() => splitLines(c.heroRotating), [c.heroRotating]);
+  const marquee = splitLines(c.marqueeItems);
+  const clips = CLIP_DEPTHS.map((depth, i) => ({
+    depth,
+    image: c[`clip${i + 1}Image`],
+    label: c[`clip${i + 1}Label`],
+    metric: c[`clip${i + 1}Metric`],
+  }));
+  const dashStats = [1, 2, 3, 4].map((n) => ({ label: c[`dashStat${n}Label`], value: c[`dashStat${n}Value`], note: c[`dashStat${n}Note`] }));
 
   const campaigns = useCollection<CampaignItem>('campaigns', clyxCampaigns, (item) => ({
     tag: item.category ? `#${String(item.category).toUpperCase()}` : '',
@@ -29,51 +95,41 @@ export default function LandingV1() {
     ctaUrl: item.ctaUrl,
   }));
 
-  useEffect(() => {
-    if (!scriptsReady || !siteContent || siteContent === appliedRef.current) return;
-    appliedRef.current = siteContent;
-    (window as any).clyxApplyRemoteContent?.(siteContent);
-    (window as any).clyxRefreshAll?.();
-  }, [scriptsReady, siteContent]);
+  useLandingMotion(rootRef);
 
   useEffect(() => {
+    markIntroLoaderPlayed();
+    if (!showLoader) return;
     const progress = document.querySelector('.loader-progress') as HTMLElement | null;
-    requestAnimationFrame(() => {
+    const frame = requestAnimationFrame(() => {
       if (progress) progress.style.width = '100%';
     });
-
-    // Load data.js first
-    const dataScript = document.createElement('script');
-    dataScript.src = '/js/data.js';
-    dataScript.async = false;
-    document.body.appendChild(dataScript);
-
-    // Load main.js after
-    const script = document.createElement('script');
-    script.src = '/js/main.js';
-    script.async = false;
-    
-    dataScript.onload = () => {
-      appliedRef.current = contentRef.current;
-      (window as any).clyxApplyRemoteContent?.(contentRef.current);
-      document.body.appendChild(script);
-    };
-    script.onload = () => setScriptsReady(true);
-
+    const timer = setTimeout(() => setLoaderDone(true), LOADER_MS);
     return () => {
-      if (document.body.contains(script)) document.body.removeChild(script);
-      if (document.body.contains(dataScript)) document.body.removeChild(dataScript);
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
     };
-  }, []);
+  }, [showLoader]);
+
+  const onNewsletterSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const input = e.currentTarget.querySelector('input');
+    if (input?.value) {
+      alert(`Thank you for subscribing! We've sent a confirmation to ${input.value}`);
+      input.value = '';
+    }
+  };
 
   return (
     <>
       <Header />
-      <div className="v1-landing-wrapper bg-[color:var(--background)] text-foreground min-h-screen transition-colors">
-        <div id="loader" role="status" aria-label="Loading CLYX">
-          <div className="loader-mark">CLYX<span>.</span></div>
-          <div className="loader-bar" aria-hidden="true"><span className="loader-progress" /></div>
-        </div>
+      <div ref={rootRef} className="v1-landing-wrapper bg-[color:var(--background)] text-foreground min-h-screen transition-colors">
+        {showLoader && (
+          <div id="loader" className={loaderDone ? 'loaded' : undefined} role="status" aria-label="Loading CLYX">
+            <div className="loader-mark">CLYX<span>.</span></div>
+            <div className="loader-bar" aria-hidden="true"><span className="loader-progress" /></div>
+          </div>
+        )}
         <main>
         {/* Copied from backup_v1 */}
         
@@ -85,62 +141,39 @@ export default function LandingV1() {
       </div>
 
       <div className="hero-inner">
-        <p className="eyebrow">Performance marketing &bull; Creator ads &bull; Web</p>
+        <p className="eyebrow">{hero.eyebrow || HERO_DEFAULTS.eyebrow}</p>
         <h1 className="hero-title">
-          <span className="hero-line">We turn <em>organic clips</em></span><br />
-          <span className="hero-line">into <em className="accent">scaled accounts.</em></span>
+          <span className="hero-line">{heroLine1 || 'We turn organic clips'}</span>
+          {heroLine2 && <><br /><span className="hero-line">into <HeroTypewriter base={heroLine2} phrases={heroPhrases} /></span></>}
         </h1>
-        <p className="hero-sub">
-          CLYX Media runs the creator whitelisting + performance engine behind brands that sell — Meta &amp; Google ads, content, branding, and websites built for one job: conversion.
-        </p>
+        <p className="hero-sub">{hero.sub || HERO_DEFAULTS.sub}</p>
         <div className="hero-cta">
-          <a href="/contact" className="btn btn-primary btn-large">Book a Growth Call ↗</a>
-          <a href="#engine" className="btn btn-ghost btn-large">Experience 3D Engine ↓</a>
+          <a href={safeHref(c.heroPrimaryUrl || '/contact')} className="btn btn-primary btn-large">{c.heroPrimaryText}</a>
+          {c.heroSecondaryText && <a href={safeHref(c.heroSecondaryUrl || '#engine')} className="btn btn-ghost btn-large">{c.heroSecondaryText}</a>}
         </div>
       </div>
 
       {/*  Floating Parallax Clip Stack (The Whitelisting Metaphor)  */}
       <div className="clip-stack" id="clipStack">
-        <div className="clip-card" data-depth="0.04">
-          <div className="clip-thumb fashion"></div>
-          <div className="clip-overlay"></div>
-          <div className="clip-tag">Organic Reel</div>
-        </div>
-        <div className="clip-card" data-depth="0.07">
-          <div className="clip-thumb beauty"></div>
-          <div className="clip-overlay"></div>
-          <div className="clip-tag">Organic Reel</div>
-        </div>
-        <div className="clip-card whitelisted" data-depth="0.10">
-          <div className="clip-thumb food"></div>
-          <div className="clip-overlay"></div>
-          <div className="clip-tag">Scaled Ad · <span className="counter" data-target="312" data-prefix="+" data-suffix="% ROAS">+312% ROAS</span></div>
-        </div>
-        <div className="clip-card" data-depth="0.06">
-          <div className="clip-thumb tech"></div>
-          <div className="clip-overlay"></div>
-          <div className="clip-tag">Organic Reel</div>
-        </div>
-        <div className="clip-card whitelisted" data-depth="0.09">
-          <div className="clip-thumb fashion"></div>
-          <div className="clip-overlay"></div>
-          <div className="clip-tag">Scaled Ad · <span className="counter" data-target="188" data-prefix="+" data-suffix="% CTR">+188% CTR</span></div>
-        </div>
+        {clips.map((clip, i) => (
+          <div key={i} className={`clip-card${clip.metric ? ' whitelisted' : ''}`} data-depth={clip.depth}>
+            <div className="clip-thumb" style={clip.image ? { backgroundImage: `url(${JSON.stringify(clip.image)})` } : undefined}></div>
+            <div className="clip-overlay"></div>
+            <div className="clip-tag">{clip.label}{clip.metric && <>{clip.label && ' · '}<Counter value={clip.metric} /></>}</div>
+          </div>
+        ))}
       </div>
     </section>
 
     {/*  Infinite Marquee Strip  */}
     <div className="marquee-strip">
       <div className="marquee-track">
-        <span>50+ D2C BRANDS SCALED</span><span className="dot">·</span>
-        <span>₹45CR+ AD SPEND MANAGED</span><span className="dot">·</span>
-        <span>3.4X AVG ROAS LIFT</span><span className="dot">·</span>
-        <span>250+ CREATORS IN NETWORK</span><span className="dot">·</span>
-        <span>CREATOR WHITELISTING ENGINE</span><span className="dot">·</span>
-        <span>50+ D2C BRANDS SCALED</span><span className="dot">·</span>
-        <span>₹45CR+ AD SPEND MANAGED</span><span className="dot">·</span>
-        <span>3.4X AVG ROAS LIFT</span><span className="dot">·</span>
-        <span>250+ CREATORS IN NETWORK</span><span className="dot">·</span>
+        {/* Listed twice so the scroll loops without a gap. */}
+        {[...marquee, ...marquee].map((item, i) => (
+          <React.Fragment key={i}>
+            <span>{item}</span><span className="dot">·</span>
+          </React.Fragment>
+        ))}
       </div>
     </div>
 
@@ -148,9 +181,9 @@ export default function LandingV1() {
     <section className="kinetic-section" id="engine">
       {/* The heading scrolls away normally; only the laptop is pinned, so it can use the full viewport height. */}
       <div className="kinetic-header">
-        <p className="eyebrow" style={{ marginBottom: "8px" }}>Live Scaling Architecture ↓</p>
-        <h2>The engine behind <span className="kinetic-accent">₹45Cr+ in revenue</span>.</h2>
-        <p>Real-time creator whitelisting paired with algorithmic Meta &amp; Google scaling.</p>
+        <p className="eyebrow" style={{ marginBottom: "8px" }}>{c.engineEyebrow}</p>
+        <h2>{c.engineTitle} <span className="kinetic-accent">{c.engineHighlight}</span></h2>
+        <p>{c.engineText}</p>
       </div>
 
       <div className="kinetic-sticky-wrap">
@@ -160,16 +193,16 @@ export default function LandingV1() {
           <div className="floating-badge badge-left">
             <span style={{ fontSize: "1.1rem" }}>🟡</span>
             <div>
-              <div style={{ fontSize: "0.65rem", color: "#94A3B8" }}>BENCHMARK</div>
-              <div><span className="counter" data-target="3.4" data-decimals="1" data-suffix="X">3.4X</span> Avg ROAS Lift</div>
+              <div style={{ fontSize: "0.65rem", color: "#94A3B8" }}>{c.badge1Label}</div>
+              <div><Counter value={c.badge1Value} /> {c.badge1Text}</div>
             </div>
           </div>
 
           <div className="floating-badge badge-right">
             <span style={{ fontSize: "1.1rem" }}>🔵</span>
             <div>
-              <div style={{ fontSize: "0.65rem", color: "#94A3B8" }}>NETWORK</div>
-              <div><span className="counter" data-target="250" data-suffix="+">250+</span> Vetted Creators</div>
+              <div style={{ fontSize: "0.65rem", color: "#94A3B8" }}>{c.badge2Label}</div>
+              <div><Counter value={c.badge2Value} /> {c.badge2Text}</div>
             </div>
           </div>
 
@@ -179,42 +212,29 @@ export default function LandingV1() {
             <div className="macbook-display">
               <div className="dash-nav">
                 <div className="dash-nav-brand">
-                  <span style={{ color: "var(--clyx-yellow)" }}>CLYX</span> GROWTH COMMAND CENTER
+                  <span style={{ color: "var(--clyx-yellow)" }}>CLYX</span> {c.dashTitle}
                 </div>
                 <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                  <span className="dash-nav-pill">● LIVE ENGINE</span>
-                  <span>Meta Advantage+ Connected</span>
+                  {c.dashLive && <span className="dash-nav-pill">● {c.dashLive}</span>}
+                  <span>{c.dashConnected}</span>
                 </div>
               </div>
 
               <div className="dash-body">
                 <div className="dash-stats-row">
-                  <div className="dash-stat-box">
-                    <div className="lbl">Blended ROAS</div>
-                    <div className="val counter" data-target="3.72" data-decimals="2" data-suffix="X" style={{ color: "var(--clyx-yellow)" }}>3.72X</div>
-                    <div className="change">↑ +0.6x vs target</div>
-                  </div>
-                  <div className="dash-stat-box">
-                    <div className="lbl">30-Day Revenue</div>
-                    <div className="val counter" data-target="30" data-prefix="₹" data-suffix=" Lakh">₹30 Lakh</div>
-                    <div className="change">↑ +42% MoM</div>
-                  </div>
-                  <div className="dash-stat-box">
-                    <div className="lbl">Whitelisted Hooks</div>
-                    <div className="val counter" data-target="48" data-suffix=" Live">48 Live</div>
-                    <div className="change">Across 18 Creators</div>
-                  </div>
-                  <div className="dash-stat-box">
-                    <div className="lbl">Avg 3-Sec Retention</div>
-                    <div className="val counter" data-target="68.4" data-decimals="1" data-suffix="%">68.4%</div>
-                    <div className="change">Industry Avg: 38%</div>
-                  </div>
+                  {dashStats.map((stat, i) => (
+                    <div key={i} className="dash-stat-box">
+                      <div className="lbl">{stat.label}</div>
+                      <Counter value={stat.value} className="val" style={i === 0 ? { color: "var(--clyx-yellow)" } : undefined} />
+                      <div className="change">{stat.note}</div>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="dash-chart-card">
                   <div className="dash-chart-head">
-                    <strong style={{ fontSize: "0.85rem", color: "#FFF" }}>Daily Attributed Revenue vs Ad Spend (Live)</strong>
-                    <span style={{ fontSize: "0.75rem", color: "var(--clyx-yellow)" }}>Advantage+ Creative Optimization</span>
+                    <strong style={{ fontSize: "0.85rem", color: "#FFF" }}>{c.dashChartTitle}</strong>
+                    <span style={{ fontSize: "0.75rem", color: "var(--clyx-yellow)" }}>{c.dashChartNote}</span>
                   </div>
                   <div className="chart-bars-wrap">
                     <div className="chart-bar-group"><div className="chart-bar" style={{ height: "42%" }}></div><span className="chart-label">Mon</span></div>
@@ -240,98 +260,84 @@ export default function LandingV1() {
       </div>
     </section>
 
-    {/*  KEY STATS COUNTERS (Numbers count from 0)  */}
-    <StatsCounterStrip />
+    {/*  CHANNELS WE SCALE ON  */}
+    <ChannelStrip content={c} />
 
     {/*  SERVICES  */}
     <section className="section services" id="services">
       <div className="section-head">
-        <p className="eyebrow">What We Run</p>
-        <h2>Six disciplines. One growth engine.</h2>
+        <p className="eyebrow">{c.servicesEyebrow}</p>
+        <h2>{c.servicesTitle}</h2>
       </div>
-      <ServiceGrid />
+      <ServiceBook content={c} />
     </section>
 
     {/*  WHITELISTING EXPLAINER  */}
     <section className="section how" id="how">
       <div className="how-grid">
         <div className="how-copy">
-          <p className="eyebrow">The CLYX Methodology</p>
-          <h2>A one-off post doesn't sell.<br />A whitelisted ad, run on data, does.</h2>
-          <p className="how-text">
-            Instead of paying for a single influencer post that disappears in 24 hours, we run the creator's own organic content as a paid ad through their handle — it reads as a genuine recommendation, not a sponsored pitch, earning instant trust. From there, performance analytics decide which hooks get scaled.
-          </p>
+          <p className="eyebrow">{c.howEyebrow}</p>
+          <h2><Lines text={c.howTitle} /></h2>
+          <p className="how-text">{c.howText}</p>
         </div>
-        <HowSteps />
+        <HowSteps content={c} />
       </div>
     </section>
 
     {/* Campaigns section: the rest of the original homepage remains unchanged. */}
-    <CoverFlowCarousel id="portfolio" sectionLabel="FEATURED CAMPAIGNS" items={campaigns} />
+    <CoverFlowCarousel id="portfolio" sectionLabel={c.campaignsLabel} items={campaigns} />
 
     {/*  ABOUT / LEADERSHIP SECTION  */}
     <section className="section team" id="about">
       <div className="section-head">
-        <p className="eyebrow">Leadership</p>
-        <h2>Small team. Direct founder access.</h2>
-        <p style={{ marginTop: "10px", maxWidth: "600px", color: "var(--text-secondary)" }}>
-          You collaborate directly with senior partners who have scaled eight-figure ad spend across high-growth categories.
-        </p>
+        <p className="eyebrow">{c.teamEyebrow}</p>
+        <h2>{c.teamTitle}</h2>
+        <p style={{ marginTop: "10px", maxWidth: "600px", color: "var(--text-secondary)" }}>{c.teamText}</p>
       </div>
-      <div className="team-grid" id="teamGrid"></div>
+      <TeamMarquee />
     </section>
 
     {/*  TESTIMONIALS MARQUEE (15S INFINITE LOOP)  */}
     <section className="section testimonials" id="testimonials">
       <div className="section-head" style={{ textAlign: "center" }}>
-        <p className="eyebrow">Client Results</p>
-        <h2>What D2C founders say about CLYX.</h2>
+        <p className="eyebrow">{c.testimonialsEyebrow}</p>
+        <h2>{c.testimonialsTitle}</h2>
       </div>
-      <div className="testimonial-marquee">
-        <div className="testimonial-track" id="testimonialTrack"></div>
-      </div>
+      <TestimonialMarquee />
     </section>
 
     {/*  NEWSLETTER STRIP  */}
     <section className="newsletter" id="newsletter">
       <div className="newsletter-inner">
-        <p className="eyebrow">Stay ahead</p>
-        <h3>One email a month. No fluff.</h3>
-        <p>Actionable breakdowns of whitelisted creator campaigns, Meta ad teardowns, and creative frameworks that scale.</p>
-        <form id="newsletterForm" className="newsletter-form">
-          <input type="email" placeholder="you@brand.com" required />
-          <button type="submit" className="btn btn-primary">Subscribe</button>
+        <p className="eyebrow">{c.newsletterEyebrow}</p>
+        <h3>{c.newsletterTitle}</h3>
+        <p>{c.newsletterText}</p>
+        <form id="newsletterForm" className="newsletter-form" onSubmit={onNewsletterSubmit}>
+          <input type="email" placeholder={c.newsletterPlaceholder} required />
+          <button type="submit" className="btn btn-primary">{c.newsletterButton}</button>
         </form>
       </div>
     </section>
 
     {/*  CONVERSION CTA BAND  */}
     <section className="cta-band" id="contact">
-      <h2>Ready to turn your creators into scalable ad accounts?</h2>
-      <p className="cta-subtext">
-        Let's audit your current Meta/Google ad accounts and creator pipeline. We will map out a 90-day scaling roadmap for your brand.
-      </p>
+      <div className="cta-copy">
+        <p className="cta-eyebrow">
+          <span className="cta-dot" aria-hidden="true" />
+          {c.ctaEyebrow}
+        </p>
+        <h2>{c.ctaTitle} <span>{c.ctaHighlight}</span></h2>
+        <p className="cta-subtext">{c.ctaText}</p>
+      </div>
       <div className="cta-actions">
-        <a href="https://wa.me/919671430111" target="_blank" className="btn btn-primary btn-large">Book a Growth Call ↗</a>
-        <a href="mailto:hello@clyxmedia.com?subject=Growth Consultation - CLYX Media" className="btn cta-btn-founders btn-large">Email Founders</a>
+        <a href={safeHref(c.ctaPrimaryUrl)} target="_blank" rel="noreferrer" className="btn btn-primary cta-btn">{c.ctaPrimaryText} <span aria-hidden="true">↗</span></a>
+        <a href={safeHref(c.ctaSecondaryUrl)} className="btn cta-btn cta-btn-founders">{c.ctaSecondaryText}</a>
       </div>
     </section>
   
       </main>
       
       
-
-  {/*  Case Study Popup Modal  */}
-  <div className="modal-backdrop" id="modalBackdrop">
-    <div className="clyx-modal">
-      <button className="modal-close-btn" id="modalClose">✕</button>
-      <div id="modalMedia"></div>
-      <p className="eyebrow" id="modalClient"></p>
-      <h3 id="modalCampaign" style={{ fontSize: "2rem", marginBottom: "16px" }}></h3>
-      <div id="modalResults"></div>
-      <div id="modalMetrics"></div>
-    </div>
-  </div>
 
   {/* Shared footer, social icons, WhatsApp button, and consent UI. */}
   <Footer />

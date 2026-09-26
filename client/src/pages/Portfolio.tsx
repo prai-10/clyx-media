@@ -1,9 +1,22 @@
-import { useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowUpRight } from 'lucide-react';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion, type Variants } from 'framer-motion';
+import {
+  ArrowUpRight,
+  Check,
+  Cpu,
+  LayoutGrid,
+  ShoppingBag,
+  Shirt,
+  Sparkles,
+  TrendingUp,
+  UtensilsCrossed,
+  type LucideIcon,
+} from 'lucide-react';
 import PageShell from '@/components/layout/PageShell';
 import { Label, Section } from '@/components/ui/primitives';
 import { cn } from '@/lib/utils';
+import { useCollection } from '@/lib/siteContent';
+import { pageDefaults, safeHref, splitLines, usePageContent } from '@/lib/pageContent';
 
 interface PortfolioImage {
   src: string;
@@ -14,7 +27,7 @@ interface PortfolioImage {
   result: string;
 }
 
-const portfolioImages: PortfolioImage[] = [
+const defaultPortfolio: PortfolioImage[] = [
   {
     src: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1000&q=85',
     alt: 'Kulture Skin UGC Ads',
@@ -65,7 +78,83 @@ const portfolioImages: PortfolioImage[] = [
   },
 ];
 
-const filters = ['All', 'Beauty', 'Food', 'Fashion', 'Tech', 'D2C'];
+// Known categories get their own icon; any new category the admin types gets a generic one.
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
+  all: LayoutGrid,
+  beauty: Sparkles,
+  food: UtensilsCrossed,
+  fashion: Shirt,
+  tech: Cpu,
+  d2c: ShoppingBag,
+};
+
+type Filter = { label: string; icon: LucideIcon };
+
+function FilterPills({ filters, active, onChange }: { filters: Filter[]; active: string; onChange: (label: string) => void }) {
+  const reduceMotion = useReducedMotion();
+
+  return (
+    <div className="mb-10 flex justify-center">
+      <motion.div
+        initial={{ opacity: 0, y: 16, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+        className="relative flex max-w-full flex-wrap justify-center gap-3 md:gap-4"
+      >
+        {filters.map(({ label, icon: Icon }, index) => {
+          const isActive = active === label;
+          return (
+            <motion.button
+              key={label}
+              type="button"
+              aria-pressed={isActive}
+              onClick={() => onChange(label)}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 + index * 0.06, duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+              whileHover={reduceMotion ? undefined : { y: -2 }}
+              whileTap={{ scale: 0.94 }}
+              className={cn(
+                'group relative isolate inline-flex items-center gap-2 overflow-hidden !rounded-full border px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] transition-[color,background-color,border-color,box-shadow] duration-300 md:px-5 md:text-xs',
+                isActive
+                  ? 'border-transparent text-white shadow-[0_6px_16px_-8px_rgba(30,91,216,0.45)]'
+                  : 'border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-secondary)] backdrop-blur-md hover:border-[var(--border-strong)] hover:bg-[var(--bg-card-hover)] hover:text-foreground'
+              )}
+            >
+              {isActive && (
+                <motion.span
+                  layoutId="portfolio-filter-active"
+                  className="absolute inset-0 -z-10 rounded-full bg-gradient-to-br from-[#1E5BD8] to-[#013AA3] ring-1 ring-inset ring-white/15"
+                  transition={{ type: 'spring', stiffness: 400, damping: 34 }}
+                >
+                  {!reduceMotion && (
+                    <motion.span
+                      className="absolute inset-y-0 -left-1/2 w-1/2 -skew-x-12 bg-gradient-to-r from-transparent via-white/15 to-transparent"
+                      animate={{ x: ['0%', '400%'] }}
+                      transition={{ duration: 1.6, repeat: Infinity, repeatDelay: 2.4, ease: 'easeInOut' }}
+                    />
+                  )}
+                </motion.span>
+              )}
+
+              <Icon
+                size={14}
+                strokeWidth={2.25}
+                className={cn(
+                  'transition-all duration-300',
+                  isActive
+                    ? 'text-yellow'
+                    : 'text-[var(--text-muted)] group-hover:rotate-[-8deg] group-hover:scale-110 group-hover:text-yellow'
+                )}
+              />
+              <span>{label}</span>
+            </motion.button>
+          );
+        })}
+      </motion.div>
+    </div>
+  );
+}
 
 function HoverExpandPortfolio({ items, className }: { items: PortfolioImage[]; className?: string }) {
   const [activeImage, setActiveImage] = useState<number | null>(0);
@@ -159,63 +248,468 @@ function HoverExpandPortfolio({ items, className }: { items: PortfolioImage[]; c
   );
 }
 
+// Placement of the two floating result chips; their text is ctaStat1/ctaStat2 in the page content.
+// The journey arrow runs aura (chip 2) -> kulture (chip 1) -> button.
+const CTA_STATS = [
+  { id: 'kulture', n: 1, className: 'left-[45%] top-14', tilt: '-rotate-3', delay: 0.35, float: 5 },
+  { id: 'aura', n: 2, className: 'left-[35%] bottom-12', tilt: 'rotate-2', delay: 0.2, float: 6 },
+] as const;
+
+type Box = { x: number; y: number; w: number; h: number };
+type Journey = { toCard: string; toCardHead: string; toButton: string; toButtonHead: string };
+
+type Pt = { x: number; y: number };
+
+const boxOf = (el: HTMLElement): Box => ({ x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight });
+
+const unit = (v: Pt): Pt => {
+  const len = Math.hypot(v.x, v.y) || 1;
+  return { x: v.x / len, y: v.y / len };
+};
+
+type Cubic = [Pt, Pt, Pt, Pt];
+
+const cubicAt = ([p0, p1, p2, p3]: Cubic, s: number): Pt => {
+  const m = 1 - s;
+  const [a, b, c, d] = [m * m * m, 3 * m * m * s, 3 * m * s * s, s * s * s];
+  return { x: a * p0.x + b * p1.x + c * p2.x + d * p3.x, y: a * p0.y + b * p1.y + c * p2.y + d * p3.y };
+};
+
+const cubicTangent = ([p0, p1, p2, p3]: Cubic, s: number): Pt => {
+  const m = 1 - s;
+  const [a, b, c] = [3 * m * m, 6 * m * s, 3 * s * s];
+  return unit({
+    x: a * (p1.x - p0.x) + b * (p2.x - p1.x) + c * (p3.x - p2.x),
+    y: a * (p1.y - p0.y) + b * (p2.y - p1.y) + c * (p3.y - p2.y),
+  });
+};
+
+// Hand-drawn loop arrow: follows the cubic `base`, and around its midpoint slows down while swinging
+// through one full circle towards `side` (1 = left of travel, -1 = right), so the stroke overshoots,
+// curls back and crosses itself like a marker doodle. Returns the sampled path and its final tangent.
+function loopArrow(base: Cubic, side: 1 | -1, steps = 140) {
+  const LOOP_AT = 0.5;
+  const LOOP_HALF = 0.22; // half-width of the loop window, in t
+  const LOOP_SPEED = 0.25; // how slowly the base curve advances inside the window
+  const chord = Math.hypot(base[3].x - base[0].x, base[3].y - base[0].y);
+  const radius = Math.min(64, Math.max(34, chord * 0.14));
+
+  // Cumulative progress along the base curve, eased down inside the loop window.
+  const speed = (t: number) =>
+    Math.abs(t - LOOP_AT) < LOOP_HALF ? 1 - (1 - LOOP_SPEED) * 0.5 * (1 + Math.cos((Math.PI * (t - LOOP_AT)) / LOOP_HALF)) : 1;
+  const progress = [0];
+  for (let i = 1; i <= steps; i++) progress.push(progress[i - 1] + (speed((i - 1) / steps) + speed(i / steps)) / 2);
+  const total = progress[steps];
+
+  const T = cubicTangent(base, progress[Math.round(LOOP_AT * steps)] / total);
+  const N = { x: T.y * side, y: -T.x * side };
+
+  const pts: Pt[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const p = cubicAt(base, progress[i] / total);
+    const k = (t - LOOP_AT + LOOP_HALF) / (2 * LOOP_HALF);
+    if (k > 0 && k < 1) {
+      const angle = 2 * Math.PI * k * k * (3 - 2 * k);
+      const along = radius * Math.sin(angle);
+      const across = radius * (1 - Math.cos(angle));
+      p.x += along * T.x + across * N.x;
+      p.y += along * T.y + across * N.y;
+    }
+    pts.push(p);
+  }
+
+  return {
+    d: pts.map((p, i) => `${i ? 'L' : 'M'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' '),
+    end: pts[steps],
+    // A few samples back gives a steadier heading for the arrowhead than the last segment alone.
+    control: pts[steps - 4],
+  };
+}
+
+// Open hand-drawn chevron at `end`, aligned with the tangent coming from `control`.
+function arrowHead(end: Pt, control: Pt): string {
+  const d = unit({ x: end.x - control.x, y: end.y - control.y });
+  const p = { x: -d.y, y: d.x };
+  const base = { x: end.x - d.x * 15, y: end.y - d.y * 15 };
+  const f = (pt: Pt) => `${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`;
+  return `M ${f({ x: base.x + p.x * 12, y: base.y + p.y * 12 })} L ${f(end)} L ${f({ x: base.x - p.x * 12, y: base.y - p.y * 12 })}`;
+}
+
+// Builds two hand-drawn loop arrows in container pixels: aura chip -> kulture chip, then kulture chip -> button.
+function buildJourney(aura: Box, kulture: Box, button: Box): Journey {
+  const start = { x: aura.x + aura.w * 0.5, y: aura.y - 12 };
+  const into = { x: kulture.x + kulture.w * 0.45, y: kulture.y + kulture.h + 18 };
+  const out = { x: kulture.x + kulture.w + 16, y: kulture.y + kulture.h * 0.5 };
+  const end = { x: button.x - 18, y: button.y + button.h / 2 };
+
+  // Rises from the aura chip bowing left, loops, then sweeps up-right into the kulture chip.
+  const rise = { x: into.x - start.x, y: into.y - start.y };
+  const toCard = loopArrow(
+    [
+      start,
+      { x: start.x - rise.x * 0.35, y: start.y + rise.y * 0.55 },
+      { x: into.x - rise.x * 0.35, y: into.y - rise.y * 0.3 },
+      into,
+    ],
+    -1
+  );
+
+  // Arches right off the kulture chip, loops on the inside of the bend, then drops onto the button.
+  const drop = { x: end.x - out.x, y: end.y - out.y };
+  const toButton = loopArrow(
+    [
+      out,
+      { x: out.x + drop.x * 0.7, y: out.y },
+      { x: end.x - drop.x * 0.2, y: end.y - drop.y * 0.45 },
+      end,
+    ],
+    -1
+  );
+
+  return {
+    toCard: toCard.d,
+    toCardHead: arrowHead(toCard.end, toCard.control),
+    toButton: toButton.d,
+    toButtonHead: arrowHead(toButton.end, toButton.control),
+  };
+}
+
+// Closing CTA: hand-drawn doodles (underline, loop arrow, note) draw themselves in once scrolled into view.
+function CaseStudiesCta({ content: c = pageDefaults('portfolio') }: { content?: Record<string, string> }) {
+  const reduceMotion = useReducedMotion();
+  const reveal = reduceMotion
+    ? { initial: false as const, animate: 'show' }
+    : { initial: 'hidden', whileInView: 'show', viewport: { once: true, amount: 0.4 } };
+
+  const draw: Variants = {
+    hidden: { pathLength: 0, opacity: 0 },
+    show: (delay: number) => ({
+      pathLength: 1,
+      opacity: 1,
+      transition: { pathLength: { delay, duration: 1.1, ease: 'easeInOut' }, opacity: { delay, duration: 0.01 } },
+    }),
+  };
+  const pop: Variants = {
+    hidden: { opacity: 0, scale: 0.4 },
+    show: (delay: number) => ({ opacity: 1, scale: 1, transition: { delay, type: 'spring', stiffness: 420, damping: 18 } }),
+  };
+  const write: Variants = {
+    hidden: { clipPath: 'inset(-40% 100% -40% -150%)' },
+    show: (i: number) => ({
+      clipPath: 'inset(-40% -150% -40% -150%)',
+      transition: { delay: 3 + i * 0.045, duration: 0.12, ease: 'linear' },
+    }),
+  };
+  const trace: Variants = {
+    hidden: { pathLength: 0, opacity: 0 },
+    show: ({ delay, duration }: { delay: number; duration: number }) => ({
+      pathLength: 1,
+      opacity: 1,
+      transition: { pathLength: { delay, duration, ease: 'easeInOut' }, opacity: { delay, duration: 0.01 } },
+    }),
+  };
+  const note = c.ctaNote;
+  const includes = splitLines(c.ctaIncludes);
+  const noteArrowDelay = 3.1 + note.length * 0.045;
+  const fadeUp: Variants = {
+    hidden: { opacity: 0, y: 10 },
+    show: (delay: number) => ({ opacity: 1, y: 0, transition: { delay, duration: 0.5, ease: [0.23, 1, 0.32, 1] } }),
+  };
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLAnchorElement>(null);
+  const chipRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [journey, setJourney] = useState<Journey | null>(null);
+
+  useLayoutEffect(() => {
+    const { aura, kulture } = chipRefs.current;
+    const button = buttonRef.current;
+    const container = containerRef.current;
+    if (!aura || !kulture || !button || !container) return;
+
+    // Chips are display:none below xl, so offsetParent is null there and the arrow is skipped.
+    const measure = () =>
+      setJourney(
+        aura.offsetParent && kulture.offsetParent ? buildJourney(boxOf(aura), boxOf(kulture), boxOf(button)) : null
+      );
+    measure();
+    const observer = new ResizeObserver(measure);
+    [container, aura, kulture, button].forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <motion.section {...reveal} className="relative isolate overflow-hidden bg-blue text-white mb-10 md:mb-14">
+      {/* Soft dot grid + corner glow for depth. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.12] [background-image:radial-gradient(rgba(255,255,255,0.9)_1px,transparent_1px)] [background-size:22px_22px] [mask-image:radial-gradient(ellipse_at_70%_40%,black,transparent_75%)]"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-32 -top-32 -z-10 h-96 w-96 rounded-full bg-[#FFDE59]/15 blur-3xl"
+      />
+
+      {/* Spinning badge tucked into the section's top-left corner (desktop only). */}
+      <motion.div
+        aria-hidden="true"
+        variants={pop}
+        custom={0.9}
+        className="pointer-events-none absolute left-5 top-5 hidden lg:block"
+      >
+        <motion.svg
+          viewBox="0 0 120 120"
+          className="h-24 w-24"
+          animate={reduceMotion ? undefined : { rotate: 360 }}
+          transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
+        >
+          <defs>
+            <path id="cta-badge-ring" d="M60 60 m-44 0 a44 44 0 1 1 88 0 a44 44 0 1 1 -88 0" />
+          </defs>
+          <circle cx="60" cy="60" r="56" fill="none" stroke="rgba(255,255,255,0.18)" strokeDasharray="3 6" />
+          <text className="fill-white/80 text-[10.5px] font-semibold uppercase tracking-[0.32em]">
+            <textPath href="#cta-badge-ring">{c.ctaBadge}</textPath>
+          </text>
+        </motion.svg>
+        <span className="absolute inset-0 m-auto grid h-10 w-10 place-items-center rounded-full bg-yellow text-dark">
+          <Sparkles size={16} strokeWidth={2.25} />
+        </span>
+      </motion.div>
+
+      <div
+        ref={containerRef}
+        className="container relative flex flex-col gap-10 py-20 md:flex-row md:items-end md:justify-between md:py-28 lg:pt-36"
+      >
+        {/* Journey arrows (aura -> kulture, kulture -> button), each drawn then capped with its head.
+            Always mounted (hidden until measured) so they follow the section's reveal variants. */}
+        <svg
+          aria-hidden="true"
+          className={cn('pointer-events-none absolute inset-0 h-full w-full overflow-visible', !journey && 'invisible')}
+        >
+          {[
+            { d: journey?.toCard, head: journey?.toCardHead, delay: 0.6, duration: 1 },
+            { d: journey?.toButton, head: journey?.toButtonHead, delay: 1.8, duration: 1.1 },
+          ].map(arrow => (
+            <g key={arrow.delay}>
+              <motion.path
+                d={arrow.d ?? 'M0 0'}
+                fill="none"
+                stroke="white"
+                strokeWidth={4}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                variants={trace}
+                custom={arrow}
+              />
+              <motion.path
+                d={arrow.head ?? 'M0 0'}
+                fill="none"
+                stroke="white"
+                strokeWidth={4}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                variants={trace}
+                custom={{ delay: arrow.delay + arrow.duration, duration: 0.25 }}
+              />
+            </g>
+          ))}
+        </svg>
+
+        {/* Top-right: what's inside a case study (desktop only). */}
+        <div className="absolute right-10 top-12 hidden w-72 lg:block">
+          <motion.p
+            variants={fadeUp}
+            custom={0.5}
+            className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow md:text-xs"
+          >
+            {c.ctaIncludesTitle}
+          </motion.p>
+          <ul className="space-y-2.5 border-l border-white/15 pl-4">
+            {includes.map((item, i) => (
+              <motion.li
+                key={i}
+                variants={fadeUp}
+                custom={0.65 + i * 0.12}
+                className="flex items-start gap-2.5 text-sm leading-snug text-white/80"
+              >
+                <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-yellow text-dark">
+                  <Check size={10} strokeWidth={3.5} />
+                </span>
+                {item}
+              </motion.li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Floating result chips (xl+ only, where there is room for the journey). */}
+        {CTA_STATS.map(stat => (
+          <motion.div
+            key={stat.id}
+            ref={el => {
+              chipRefs.current[stat.id] = el;
+            }}
+            aria-hidden="true"
+            variants={pop}
+            custom={stat.delay}
+            className={cn('pointer-events-none absolute hidden xl:block', stat.className)}
+          >
+            <motion.div
+              animate={reduceMotion ? undefined : { y: [0, -8, 0] }}
+              transition={{ duration: stat.float, repeat: Infinity, ease: 'easeInOut' }}
+              className={cn(
+                'flex items-center gap-3 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 shadow-[0_18px_40px_-20px_rgba(0,0,0,0.6)] backdrop-blur-md',
+                stat.tilt
+              )}
+            >
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-yellow text-dark">
+                <TrendingUp size={16} strokeWidth={2.4} />
+              </span>
+              <span className="leading-tight">
+                <span className="block font-display text-xl font-bold tracking-tight text-yellow">{c[`ctaStat${stat.n}Value`]}</span>
+                <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-white/65">
+                  {c[`ctaStat${stat.n}Label`]}
+                </span>
+              </span>
+            </motion.div>
+          </motion.div>
+        ))}
+
+        <div>
+          <Label style={{ color: '#FFDE59' }}>{c.ctaLabel}</Label>
+          <h2 className="display relative text-5xl font-bold md:text-7xl">
+            {/* Hand-drawn sparkle doodle beside the headline. */}
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 48 48"
+              className="absolute -right-12 -top-7 hidden h-11 w-11 overflow-visible text-yellow md:block"
+            >
+              {['M24 6 L24 18', 'M36 12 L30 21', 'M42 26 L32 27'].map((d, i) => (
+                <motion.path
+                  key={d}
+                  d={d}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={3.5}
+                  strokeLinecap="round"
+                  variants={draw}
+                  custom={0.9 + i * 0.12}
+                />
+              ))}
+            </svg>
+            {c.ctaTitle}
+            <br />
+            <span className="relative inline-block text-yellow">
+              {c.ctaHighlight}
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 240 16"
+                preserveAspectRatio="none"
+                className="absolute -bottom-3 left-0 h-3 w-full overflow-visible md:-bottom-4 md:h-4"
+              >
+                <motion.path
+                  d="M3 10 C 40 3, 78 14, 118 8 S 196 3, 236 9"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.75)"
+                  strokeWidth={3}
+                  strokeLinecap="round"
+                  variants={draw}
+                  custom={0.4}
+                />
+              </svg>
+            </span>
+          </h2>
+        </div>
+
+        <div className="flex flex-col items-start gap-4 md:items-end">
+          {/* Handwritten note, uncovered letter by letter like a pen stroke. */}
+          <p
+            aria-hidden="true"
+            className="flex items-start gap-1 font-['Caveat',cursive] text-2xl leading-none text-yellow -rotate-3 md:mr-10 md:text-[1.7rem]"
+          >
+            <span className="whitespace-pre">
+              {note.split('').map((ch, i) => (
+                <motion.span key={i} className="inline-block" variants={write} custom={i}>
+                  {ch}
+                </motion.span>
+              ))}
+            </span>
+            <svg viewBox="0 0 50 40" className="mt-2 h-7 w-8 overflow-visible">
+              <motion.path
+                d="M4 6 C 26 4, 42 14, 40 34"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                variants={draw}
+                custom={noteArrowDelay}
+              />
+              <motion.path
+                d="M32 28 L 40 36 L 47 27"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                variants={draw}
+                custom={noteArrowDelay + 0.35}
+              />
+            </svg>
+          </p>
+
+          <motion.a
+            ref={buttonRef}
+            href={safeHref(c.ctaButtonUrl || '/contact')}
+            whileHover={reduceMotion ? undefined : { y: -3 }}
+            className="group relative z-10 inline-flex items-center gap-3 bg-yellow px-6 py-4 text-sm font-semibold uppercase tracking-[.1em] text-dark shadow-[0_10px_30px_-12px_rgba(0,0,0,0.5)] transition-colors hover:bg-white"
+          >
+            {c.ctaButton}
+            <ArrowUpRight size={16} className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+          </motion.a>
+        </div>
+      </div>
+    </motion.section>
+  );
+}
+
 export default function Portfolio() {
+  const c = usePageContent('portfolio');
+  const portfolioImages = useCollection<PortfolioImage>('portfolio', defaultPortfolio, (item, i) => ({
+    src: item.image,
+    alt: item.title,
+    code: `#${String(i + 1).padStart(2, '0')}`,
+    category: item.category,
+    title: item.title,
+    result: item.result,
+  }));
+  const filters: Filter[] = ['All', ...Array.from(new Set(portfolioImages.map(item => item.category).filter(Boolean)))].map(label => ({
+    label,
+    icon: CATEGORY_ICONS[label.toLowerCase()] ?? TrendingUp,
+  }));
   const [filter, setFilter] = useState('All');
   const filtered = filter === 'All' ? portfolioImages : portfolioImages.filter(item => item.category === filter);
 
   return (
     <PageShell
-      eyebrow="Portfolio"
+      eyebrow={c.heroEyebrow}
       title={
         <>
-          Proof, not
+          {c.heroTitle}
           <br />
-          <span className="text-yellow">promises.</span>
+          <span className="text-yellow">{c.heroHighlight}</span>
         </>
       }
-      intro="A selection of the systems, campaigns, and storefronts we have built to turn attention into measurable growth."
+      intro={c.heroIntro}
     >
-      <Section className="py-12">
+      <Section className="py-12 !pt-4 md:!pt-6">
         {/* Category Filter Pills */}
-        <div className="flex flex-wrap gap-2 justify-center mb-6">
-          {filters.map(item => (
-            <button
-              key={item}
-              onClick={() => setFilter(item)}
-              className={cn(
-                'border px-5 py-2.5 rounded-full text-xs font-semibold uppercase tracking-[0.1em] transition-all',
-                filter === item
-                  ? 'border-blue bg-blue text-white shadow-md'
-                  : 'border-grid text-muted hover:border-blue hover:text-foreground'
-              )}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
+        <FilterPills filters={filters} active={filter} onChange={setFilter} />
 
         {/* Hover-Expand Animated Showcase */}
         <HoverExpandPortfolio items={filtered} />
       </Section>
 
-      <section className="bg-blue text-white">
-        <div className="container flex flex-col gap-8 py-20 md:flex-row md:items-end md:justify-between md:py-28">
-          <div>
-            <Label style={{ color: '#FFDE59' }}>Want the long version?</Label>
-            <h2 className="display text-5xl font-bold md:text-7xl">
-              See how the
-              <br />
-              <span className="text-yellow">work works.</span>
-            </h2>
-          </div>
-          <a
-            href="/contact"
-            className="inline-flex items-center gap-3 bg-yellow px-6 py-4 text-sm font-semibold uppercase tracking-[.1em] text-dark hover:bg-white transition-colors"
-          >
-            Request case studies <ArrowUpRight size={16} />
-          </a>
-        </div>
-      </section>
+      <CaseStudiesCta content={c} />
     </PageShell>
   );
 }

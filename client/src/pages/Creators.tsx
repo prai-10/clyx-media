@@ -2,8 +2,11 @@ import { ArrowUpRight } from 'lucide-react';
 import { motion, MotionValue, useScroll, useTransform } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 import PageShell from '@/components/layout/PageShell';
+import CreatorTypes from '@/components/sections/CreatorTypes';
 import { Label, Section } from '@/components/ui/primitives';
 import { useCollection } from '@/lib/siteContent';
+import { Lines } from '@/components/ui/Lines';
+import { pageDefaults, safeHref, usePageContent } from '@/lib/pageContent';
 
 const defaultCreatorImages = [
   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
@@ -18,12 +21,6 @@ const defaultCreatorImages = [
   'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=800&q=80',
   'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=800&q=80',
   'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=800&q=80',
-];
-
-const creatorTypes = [
-  ['01', 'The Hook', 'Creators who know how to stop the scroll in the first two seconds.'],
-  ['02', 'The Trust', 'Authentic voices with genuine relationships to their audiences.'],
-  ['03', 'The Proof', 'Creative minds who make your product look organic, lived-in, and irresistible.'],
 ];
 
 type ColumnProps = {
@@ -52,7 +49,7 @@ const Column = ({ images, y }: ColumnProps) => {
   );
 };
 
-export function ParallaxCreatorGallery() {
+export function ParallaxCreatorGallery({ content: c = pageDefaults('creators') }: { content?: Record<string, string> }) {
   const creatorImages = useCollection<string>('creators', defaultCreatorImages, item => item.image).filter(Boolean);
   // Always fill four columns: repeat the images when there are few, split them evenly when there are many.
   const source = creatorImages.length ? creatorImages : defaultCreatorImages;
@@ -60,29 +57,36 @@ export function ParallaxCreatorGallery() {
   const perColumn = Math.ceil(filled.length / 4);
   const columns = [0, 1, 2, 3].map(k => filled.slice(k * perColumn, (k + 1) * perColumn));
   const gallery = useRef<HTMLDivElement>(null);
-  const [dimension, setDimension] = useState({ width: 0, height: 0 });
+  const [height, setHeight] = useState(0);
 
   const { scrollYProgress } = useScroll({
     target: gallery,
     offset: ['start end', 'end start'],
   });
 
-  const { height } = dimension;
   const y = useTransform(scrollYProgress, [0, 1], [0, height * 0.8]);
   const y2 = useTransform(scrollYProgress, [0, 1], [0, height * 1.3]);
   const y3 = useTransform(scrollYProgress, [0, 1], [0, height * 0.55]);
   const y4 = useTransform(scrollYProgress, [0, 1], [0, height * 1.1]);
 
+  // Only the viewport height drives the parallax. Resize events fire in bursts (and on mobile whenever the
+  // address bar slides while scrolling), so they are coalesced to one per frame and ignored unless the height changed.
   useEffect(() => {
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      setHeight(window.innerHeight);
+    };
     const resize = () => {
-      setDimension({ width: window.innerWidth, height: window.innerHeight });
+      if (!frame) frame = requestAnimationFrame(measure);
     };
 
     window.addEventListener('resize', resize);
-    resize();
+    measure();
 
     return () => {
       window.removeEventListener('resize', resize);
+      cancelAnimationFrame(frame);
     };
   }, []);
 
@@ -90,14 +94,10 @@ export function ParallaxCreatorGallery() {
     <div className="w-full bg-[color:var(--background)] text-foreground transition-colors overflow-hidden border-b border-grid">
       <div className="flex flex-col items-center justify-center pt-16 pb-8 text-center">
         <span className="text-xs font-mono uppercase tracking-[0.25em] text-blue dark:text-yellow">
-          Creator Bench in Motion
+          {c.galleryEyebrow}
         </span>
-        <h3 className="display text-3xl md:text-5xl font-bold mt-2">
-          The Faces Behind Scaled Accounts
-        </h3>
-        <p className="text-sm text-muted mt-3 max-w-md">
-          Scroll through our multi-column parallax talent gallery.
-        </p>
+        <h3 className="display text-3xl md:text-5xl font-bold mt-2">{c.galleryTitle}</h3>
+        <p className="text-sm text-muted mt-3 max-w-md">{c.galleryText}</p>
       </div>
 
       <div
@@ -114,62 +114,59 @@ export function ParallaxCreatorGallery() {
 }
 
 export default function Creators() {
+  const c = usePageContent('creators');
   return (
     <PageShell
-      eyebrow="Creators"
+      eyebrow={c.heroEyebrow}
       title={
         <>
-          People make
+          {c.heroTitle}
           <br />
-          <span className="text-yellow">the difference.</span>
+          <span className="text-yellow">{c.heroHighlight}</span>
         </>
       }
-      intro="Our creator network is built for relevance, not reach alone. We match the right voice to the right category, then give the best content room to travel."
+      intro={c.heroIntro}
     >
       {/* Intro Feature */}
       <Section>
         <div className="grid gap-12 md:grid-cols-[1.1fr_.9fr] md:items-center">
           <div className="relative aspect-[4/3] overflow-hidden bg-yellow p-8 text-dark rounded-3xl">
-            <p className="font-mono text-xs font-bold tracking-widest text-dark/70">CREATOR / CLYX</p>
+            {c.featureImage && (
+              <>
+                <img src={c.featureImage} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#FFDE59] via-[#FFDE59]/40 to-transparent" />
+              </>
+            )}
+            <p className="relative font-mono text-xs font-bold tracking-widest text-dark/70">{c.featureTag}</p>
             <h2 className="display absolute bottom-8 left-8 right-8 text-4xl sm:text-6xl md:text-7xl font-bold leading-[0.92]">
-              The feed is a conversation.
+              <Lines text={c.featureCardTitle} />
             </h2>
           </div>
           <div>
-            <Label>Why creators work with us</Label>
+            <Label>{c.featureLabel}</Label>
             <h2 className="display text-4xl sm:text-5xl md:text-6xl font-bold">
-              No vanity metrics.
+              {c.featureTitle}
               <br />
-              <span className="text-blue dark:text-yellow">Just better work.</span>
+              <span className="text-blue dark:text-yellow">{c.featureHighlight}</span>
             </h2>
-            <p className="mt-6 text-sm sm:text-base leading-7 text-muted">
-              We protect the creator voice while making the brief, usage rights, production, and paid distribution clear from day one.
-            </p>
+            <p className="mt-6 text-sm sm:text-base leading-7 text-muted">{c.featureText}</p>
             <a
-              href="/contact"
+              href={safeHref(c.featureButtonUrl || '/contact')}
               className="mt-8 inline-flex items-center gap-3 bg-blue px-6 py-4 text-sm font-semibold uppercase tracking-[.1em] text-white hover:bg-yellow hover:text-dark transition-colors rounded-full"
             >
-              Join the network <ArrowUpRight size={16} />
+              {c.featureButton} <ArrowUpRight size={16} />
             </a>
           </div>
         </div>
       </Section>
 
       {/* Skiper30 Parallax_002 Gallery */}
-      <ParallaxCreatorGallery />
+      <ParallaxCreatorGallery content={c} />
 
       {/* Creator Types Section */}
-      <section className="bg-blue text-white">
-        <div className="container grid gap-8 py-20 md:grid-cols-3 md:py-28">
-          {creatorTypes.map((item) => (
-            <div key={item[0]} className="border-t border-white/25 pt-6">
-              <p className="font-mono text-xs text-yellow">{item[0]}</p>
-              <h3 className="display mt-10 text-3xl md:text-4xl font-semibold">{item[1]}</h3>
-              <p className="mt-4 text-sm leading-6 text-white/70">{item[2]}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      <div className="mb-16 md:mb-24">
+        <CreatorTypes content={c} />
+      </div>
     </PageShell>
   );
 }

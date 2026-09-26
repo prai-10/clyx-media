@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import { Reveal } from '@/components/ui/ScrollMotion';
+import { pageDefaults, safeHref } from '@/lib/pageContent';
 import '@/styles/about-leadership.css';
 
 export type TeamMember = { name: string; role: string; bio?: string; metric?: string; img?: string };
@@ -22,7 +23,13 @@ function Portrait({ member, className }: { member: TeamMember; className: string
   return <img src={member.img} alt={member.name} className={className} loading="lazy" onError={() => setFailed(true)} />;
 }
 
-export default function AboutLeadership({ members }: { members: TeamMember[] }) {
+export default function AboutLeadership({
+  members,
+  content: c = pageDefaults('about'),
+}: {
+  members: TeamMember[];
+  content?: Record<string, string>;
+}) {
   const founders = members.filter(isFounder);
   const team = members.filter((m) => !isFounder(m));
 
@@ -31,9 +38,9 @@ export default function AboutLeadership({ members }: { members: TeamMember[] }) 
       <div className="container">
         <div className="lead-head">
           <Reveal>
-            <p className="lead-eyebrow">Leadership</p>
+            <p className="lead-eyebrow">{c.leadEyebrow}</p>
             <h2 className="display text-4xl font-bold md:text-6xl">
-              Small team.<br /><span className="lead-accent-text">Direct access.</span>
+              {c.leadTitle}<br /><span className="lead-accent-text">{c.leadHighlight}</span>
             </h2>
           </Reveal>
           <Reveal delay={200} className="lead-head-side">
@@ -45,13 +52,13 @@ export default function AboutLeadership({ members }: { members: TeamMember[] }) 
                   ))}
                   {members.length > STACK_MAX && <span className="lead-stack-more">+{members.length - STACK_MAX}</span>}
                 </div>
-                <span className="lead-access-live"><span className="lead-access-dot" />Direct line</span>
+                {c.leadLive && <span className="lead-access-live"><span className="lead-access-dot" />{c.leadLive}</span>}
               </div>
-              <p className="lead-access-title">You work with the people who build the work.</p>
+              <p className="lead-access-title">{c.leadCardTitle}</p>
               <p className="lead-access-text">
                 No account-manager relay. {founders.length > 0 ? `${founders.length} founders and a` : 'A'} {members.length}-person core team, one conversation.
               </p>
-              <a href="/contact" className="lead-access-cta">Talk to a founder <ArrowUpRight size={16} /></a>
+              <a href={safeHref(c.leadCardButtonUrl || '/contact')} className="lead-access-cta">{c.leadCardButton} <ArrowUpRight size={16} /></a>
             </div>
           </Reveal>
         </div>
@@ -79,8 +86,8 @@ export default function AboutLeadership({ members }: { members: TeamMember[] }) 
         {team.length > 0 && (
           <>
             <div className="lead-subhead">
-              <p className="lead-eyebrow">The team</p>
-              <a href="/careers" className="lead-join">Join us <ArrowUpRight size={14} /></a>
+              <p className="lead-eyebrow">{c.leadTeamLabel}</p>
+              {c.leadJoinText && <a href={safeHref(c.leadJoinUrl || '/careers')} className="lead-join">{c.leadJoinText} <ArrowUpRight size={14} /></a>}
             </div>
             <div className="lead-team">
               {team.map((m, i) => (

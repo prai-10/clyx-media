@@ -69,3 +69,8 @@ export function DirectionalReveal({ children, direction = 'left', className = ''
   const { ref, visible } = useDirectionalReveal<HTMLDivElement>();
   return <div ref={ref} className={`direction-reveal from-${direction} ${visible ? 'is-visible' : ''} ${className}`} style={{ transitionDelay: `${delay}ms` }}>{children}</div>;
 }
+
+// Words rise one by one from behind a mask on mount (for above-the-fold headings). Screen readers get the plain text.
+export function RevealWords({ text, className = '', delay = 0, step = 120 }: { text: string; className?: string; delay?: number; step?: number }) {
+  return <span className={className}><span className="sr-only">{text}</span>{text.split(' ').filter(Boolean).map((word, i) => <span key={`${word}-${i}`} aria-hidden="true">{i > 0 && ' '}<span className="reveal-word"><span style={{ animationDelay: `${delay + i * step}ms` }}>{word}</span></span></span>)}</span>;
+}

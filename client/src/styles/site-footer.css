@@ -1,0 +1,308 @@
+/* Site footer. Class-scoped (not Tailwind utilities) so the landing page's
+   unlayered element rules (p, a, h*) in landing-v1.css can't override it. */
+.clyx-footer {
+  --cf-blue: #013AA3;
+  --cf-blue-deep: #002366;
+  --cf-yellow: #FFDE59;
+  --cf-line: rgba(255, 255, 255, 0.14);
+  --cf-text: rgba(255, 255, 255, 0.72);
+  --cf-ease: cubic-bezier(.23, 1, .32, 1);
+
+  position: relative;
+  display: block;
+  clear: both;
+  overflow: hidden;
+  isolation: isolate;
+  color: #FFFFFF;
+  font-family: var(--font-body);
+  line-height: 1.5;
+  background:
+    radial-gradient(60% 80% at 100% 0%, rgba(255, 222, 89, 0.10), transparent 60%),
+    radial-gradient(50% 60% at 0% 100%, rgba(0, 0, 0, 0.25), transparent 70%),
+    linear-gradient(180deg, var(--cf-blue) 0%, var(--cf-blue-deep) 100%);
+}
+.clyx-footer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: calc(100% / 6) 100%;
+  mask-image: linear-gradient(180deg, transparent, #000 30%, #000 70%, transparent);
+}
+.clyx-footer p { margin: 0; }
+.clyx-footer ul { list-style: none; margin: 0; padding: 0; }
+.clyx-footer a { text-decoration: none; }
+
+.clyx-footer .cf-inner {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 40px 40px 18px;
+}
+
+/* ---------- Top: contact statement ---------- */
+.clyx-footer .cf-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--cf-line);
+}
+.clyx-footer .cf-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--cf-yellow);
+}
+.clyx-footer .cf-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cf-yellow);
+  box-shadow: 0 0 0 0 rgba(255, 222, 89, 0.6);
+  animation: cf-pulse 2.4s infinite;
+}
+@keyframes cf-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 222, 89, 0.55); }
+  70% { box-shadow: 0 0 0 10px rgba(255, 222, 89, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 222, 89, 0); }
+}
+.clyx-footer .cf-email {
+  display: inline-flex;
+  align-items: center;
+  gap: 20px;
+  color: #FFFFFF;
+  font-family: 'Urbanist', sans-serif;
+  font-weight: 600;
+  font-size: clamp(1.7rem, 3.2vw, 2.6rem);
+  letter-spacing: -.03em;
+  line-height: 1;
+  transition: color .3s var(--cf-ease);
+}
+.clyx-footer .cf-email > span:first-child {
+  background-image: linear-gradient(var(--cf-yellow), var(--cf-yellow));
+  background-size: 0% 3px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  padding-bottom: 6px;
+  transition: background-size .5s var(--cf-ease);
+}
+.clyx-footer .cf-email:hover > span:first-child { background-size: 100% 3px; }
+.clyx-footer .cf-email-arrow {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: clamp(36px, 3vw, 44px);
+  height: clamp(36px, 3vw, 44px);
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  transition: background .3s var(--cf-ease), color .3s var(--cf-ease), border-color .3s var(--cf-ease), transform .4s var(--cf-ease);
+}
+.clyx-footer .cf-email:hover .cf-email-arrow {
+  background: var(--cf-yellow);
+  border-color: var(--cf-yellow);
+  color: #050505;
+  transform: rotate(45deg);
+}
+
+.clyx-footer .cf-top-actions { display: flex; gap: 12px; flex-shrink: 0; }
+.clyx-footer .cf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background .25s var(--cf-ease), color .25s var(--cf-ease), border-color .25s var(--cf-ease), transform .25s var(--cf-ease);
+}
+.clyx-footer .cf-btn svg { transition: transform .3s var(--cf-ease); }
+.clyx-footer .cf-btn:hover svg { transform: translate(2px, -2px); }
+.clyx-footer .cf-btn-primary { background: var(--cf-yellow); color: #050505; border: 1px solid var(--cf-yellow); }
+.clyx-footer .cf-btn-primary:hover { background: #FFFFFF; border-color: #FFFFFF; color: #050505; transform: translateY(-2px); }
+.clyx-footer .cf-btn-ghost { color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.35); background: rgba(255, 255, 255, 0.04); }
+.clyx-footer .cf-btn-ghost:hover { border-color: #FFFFFF; background: rgba(255, 255, 255, 0.1); color: #FFFFFF; transform: translateY(-2px); }
+
+/* ---------- Middle: brand + link columns ---------- */
+.clyx-footer .cf-main {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr 1fr;
+  gap: 48px;
+  padding: 24px 0 20px;
+}
+.clyx-footer .cf-logo {
+  display: inline-block;
+  color: #FFFFFF;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -.07em;
+  line-height: 1;
+}
+.clyx-footer .cf-logo span { color: var(--cf-yellow); }
+.clyx-footer .cf-tagline {
+  max-width: 320px;
+  margin-top: 8px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--cf-text);
+}
+.clyx-footer .cf-socials { display: flex; gap: 10px; margin-top: 14px; }
+.clyx-footer .cf-social {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  transition: background .25s var(--cf-ease), color .25s var(--cf-ease), border-color .25s var(--cf-ease), transform .25s var(--cf-ease);
+}
+.clyx-footer .cf-social:hover {
+  background: var(--cf-yellow);
+  border-color: var(--cf-yellow);
+  color: #050505;
+  transform: translateY(-3px);
+}
+
+.clyx-footer .cf-col-title {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+.clyx-footer .cf-col li + li { margin-top: 0; }
+.clyx-footer .cf-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--cf-text);
+  transition: color .25s var(--cf-ease), transform .3s var(--cf-ease);
+}
+.clyx-footer .cf-link span {
+  background-image: linear-gradient(var(--cf-yellow), var(--cf-yellow));
+  background-size: 0% 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size .35s var(--cf-ease);
+}
+.clyx-footer .cf-link-arrow {
+  opacity: 0;
+  color: var(--cf-yellow);
+  transform: translate(-4px, 4px);
+  transition: opacity .25s var(--cf-ease), transform .3s var(--cf-ease);
+}
+.clyx-footer .cf-link:hover { color: #FFFFFF; }
+.clyx-footer .cf-link:hover span { background-size: 100% 1px; }
+.clyx-footer .cf-link:hover .cf-link-arrow { opacity: 1; transform: none; }
+
+/* ---------- Giant wordmark (sits behind the content, adds no height) ---------- */
+.clyx-footer .cf-wordmark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -0.05em; /* baseline sits ~.05em above the box edge; this lands the letters on the footer's bottom edge */
+  z-index: -1;
+  padding-right: .08em;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(5rem, 20vw, 17rem);
+  letter-spacing: -.08em;
+  line-height: .8;
+  text-align: center;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+  color: transparent;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.03) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* ---------- Bottom bar ---------- */
+.clyx-footer .cf-bottom {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+  padding-top: 14px;
+  border-top: 1px solid var(--cf-line);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+}
+.clyx-footer .cf-legal { display: flex; gap: 24px; }
+.clyx-footer .cf-legal a { color: rgba(255, 255, 255, 0.55); transition: color .2s var(--cf-ease); }
+.clyx-footer .cf-legal a:hover { color: #FFFFFF; }
+.clyx-footer .cf-top-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  transition: color .2s var(--cf-ease);
+}
+.clyx-footer .cf-top-btn span {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: background .25s var(--cf-ease), color .25s var(--cf-ease), border-color .25s var(--cf-ease), transform .3s var(--cf-ease);
+}
+.clyx-footer .cf-top-btn:hover { color: #FFFFFF; }
+.clyx-footer .cf-top-btn:hover span { background: var(--cf-yellow); border-color: var(--cf-yellow); color: #050505; transform: translateY(-3px); }
+
+.clyx-footer a:focus-visible,
+.clyx-footer button:focus-visible {
+  outline: 2px solid var(--cf-yellow);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* Keep the bottom bar clear of the floating WhatsApp button when the page is narrow. */
+@media (max-width: 1420px) {
+  .clyx-footer .cf-bottom { padding-right: 72px; }
+}
+
+@media (max-width: 1023px) {
+  .clyx-footer .cf-top { flex-direction: column; align-items: flex-start; }
+  .clyx-footer .cf-main { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px 24px; }
+  .clyx-footer .cf-brand { grid-column: 1 / -1; }
+}
+
+@media (max-width: 767px) {
+  .clyx-footer .cf-inner { padding: 32px 20px 16px; }
+  .clyx-footer .cf-top { padding-bottom: 20px; }
+  .clyx-footer .cf-email { gap: 12px; font-size: clamp(1.45rem, 7.4vw, 2.2rem); }
+  .clyx-footer .cf-top-actions { width: 100%; }
+  .clyx-footer .cf-btn { flex: 1; justify-content: center; padding: 0 16px; }
+  .clyx-footer .cf-main { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 20px; padding: 20px 0 18px; }
+  .clyx-footer .cf-bottom { flex-direction: column; align-items: flex-start; gap: 12px; padding-right: 72px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clyx-footer *,
+  .clyx-footer *::before { animation: none !important; transition: none !important; }
+}

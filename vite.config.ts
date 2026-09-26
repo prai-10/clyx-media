@@ -4,8 +4,9 @@ import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { defineConfig } from "vite";
 
-export default defineConfig({
-  plugins: [react(), tailwindcss(), jsxLocPlugin()],
+export default defineConfig(({ command }) => ({
+  // jsxLoc tags every element with a data-loc source attribute: useful while developing, dead weight in production.
+  plugins: [react(), tailwindcss(), command === "serve" && jsxLocPlugin()],
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),
@@ -19,6 +20,14 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        // React rarely changes, so it gets its own long-cached file instead of being rebuilt into every app release.
+        manualChunks(id) {
+          if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return "react";
+        },
+      },
+    },
   },
   server: {
     port: 5173,
@@ -30,4 +39,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

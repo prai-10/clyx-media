@@ -1,6 +1,6 @@
 import { useEffect, useState, type RefObject } from 'react';
 
-// The landing page shows a full-screen #loader that slides away once main.js adds `.loaded`.
+// The landing page shows a full-screen #loader that slides away once LandingV1 adds `.loaded`.
 // Wait for that (plus most of its 0.85s slide) so an entrance never plays hidden behind it.
 function useLoaderGone() {
   const [gone, setGone] = useState(false);

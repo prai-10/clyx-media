@@ -32,24 +32,24 @@
   pointer-events: none;
 }
 
-.values-inner { padding-block: 56px; }
-@media (min-width: 768px) { .values-inner { padding-block: 72px; } }
+.values-inner { padding-block: 40px; }
+@media (min-width: 768px) { .values-inner { padding-block: 48px; } }
 
 /* ---------- Header ---------- */
 .values-head {
   display: grid;
-  gap: 16px;
-  margin-bottom: 32px;
+  gap: 12px;
+  margin-bottom: 24px;
 }
 @media (min-width: 768px) {
-  .values-head { grid-template-columns: 1fr 1fr; align-items: end; gap: 48px; margin-bottom: 40px; }
+  .values-head { grid-template-columns: 1fr 1fr; align-items: end; gap: 40px; margin-bottom: 28px; }
 }
 .values-eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  margin: 0 0 16px;
-  padding: 7px 14px;
+  margin: 0 0 12px;
+  padding: 6px 13px;
   border-radius: 999px;
   border: 1px solid rgba(5, 5, 5, 0.16);
   font-size: 11px;
@@ -65,14 +65,49 @@
 }
 .values-title {
   margin: 0;
-  font-size: clamp(2.2rem, 4.4vw, 3.5rem);
+  font-size: clamp(2rem, 3.8vw, 3rem);
   font-weight: 700;
 }
+/* Title plus the curly arrow that sits to its right (desktop only). */
+.values-title-row {
+  position: relative;
+  width: fit-content;
+}
+.values-arrow { display: none; }
+@media (min-width: 768px) {
+  /* Positioned out of flow so it never changes the header's height. */
+  .values-arrow {
+    position: absolute;
+    left: calc(100% + 6px);
+    top: -12px;
+    display: block;
+    width: 107px;
+    height: 130px;
+    overflow: visible;
+  }
+}
+.values-arrow path {
+  stroke: #050505;
+  stroke-width: 3.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+.values-head.is-visible .values-arrow-line { animation: values-draw 1.1s var(--ease-out) 0.35s forwards; }
+.values-head.is-visible .values-arrow-head { animation: values-draw 0.35s var(--ease-out) 1.35s forwards; }
+.values-head.is-visible .values-arrow { animation: values-bob 2.6s ease-in-out 1.9s infinite; }
+@keyframes values-draw { to { stroke-dashoffset: 0; } }
+@keyframes values-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
+
 .values-intro {
   margin: 0;
   max-width: 420px;
   font-size: 1rem;
-  line-height: 1.65;
+  line-height: 1.6;
   color: rgba(5, 5, 5, 0.68);
 }
 @media (min-width: 768px) { .values-intro { justify-self: end; } }
@@ -87,77 +122,99 @@
 
 .values-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
   height: 100%;
-  padding: 22px 24px;
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.34);
-  border: 1px solid rgba(5, 5, 5, 0.1);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 18px 40px -26px rgba(5, 5, 5, 0.35);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  transition: background 0.35s var(--ease-out), color 0.35s var(--ease-out), transform 0.35s var(--ease-out), box-shadow 0.35s var(--ease-out);
+  padding: 20px 22px 24px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: linear-gradient(165deg, #FFF8DC 0%, #FFEFB0 100%);
+  border: 1px solid rgba(5, 5, 5, 0.08);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset, 0 14px 32px -22px rgba(5, 5, 5, 0.35);
+  transition: transform 0.35s var(--ease-out), box-shadow 0.35s var(--ease-out), border-color 0.35s var(--ease-out);
 }
-/* Hover flips the card to black ink with yellow type. */
 .values-card:hover {
-  background: #050505;
-  color: #FFDE59;
-  transform: translateY(-6px);
-  box-shadow: 0 28px 50px -24px rgba(5, 5, 5, 0.6);
+  transform: translateY(-4px);
+  border-color: rgba(5, 5, 5, 0.2);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset, 0 24px 44px -24px rgba(5, 5, 5, 0.45);
 }
+
 .values-card-top {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 22px;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 .values-icon {
+  flex: none;
   display: grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 16px;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
   background: #050505;
   color: #FFDE59;
-  transition: background 0.35s var(--ease-out), color 0.35s var(--ease-out), transform 0.35s var(--ease-out);
+  transition: transform 0.35s var(--ease-out);
 }
-.values-card:hover .values-icon {
-  background: #FFDE59;
-  color: #050505;
-  transform: rotate(-8deg);
-}
-.values-num {
-  font-size: 2.8rem;
-  font-weight: 700;
-  line-height: 0.8;
-  color: transparent;
-  -webkit-text-stroke: 1.5px rgba(5, 5, 5, 0.3);
-  transition: -webkit-text-stroke-color 0.35s var(--ease-out);
-}
-.values-card:hover .values-num { -webkit-text-stroke-color: rgba(255, 222, 89, 0.55); }
+.values-card:hover .values-icon { transform: rotate(-8deg) scale(1.05); }
 .values-tag {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  opacity: 0.55;
+  color: rgba(5, 5, 5, 0.55);
 }
+/* Big faint number in the card background, bottom-right. */
+.values-num {
+  position: absolute;
+  right: 14px;
+  bottom: -18px;
+  z-index: 0;
+  font-size: 7.5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(255, 222, 89, 0.55);
+  -webkit-text-stroke: 1.5px rgba(230, 180, 0, 0.35);
+  pointer-events: none;
+  user-select: none;
+  transition: transform 0.45s var(--ease-out), color 0.35s var(--ease-out);
+}
+.values-card:hover .values-num {
+  transform: translateY(-6px);
+  color: rgba(255, 222, 89, 0.9);
+}
+.values-card > :not(.values-num) { position: relative; z-index: 1; }
+.values-card > .values-bar { position: absolute; }
+
 .values-card-title {
   margin: 0;
-  font-size: clamp(1.8rem, 2.6vw, 2.2rem);
+  font-size: clamp(1.6rem, 2.3vw, 1.95rem);
   font-weight: 700;
 }
 .values-card-text {
   margin: 10px 0 0;
-  font-size: 0.95rem;
-  line-height: 1.6;
-  color: rgba(5, 5, 5, 0.7);
-  transition: color 0.35s var(--ease-out);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: rgba(5, 5, 5, 0.68);
 }
-.values-card:hover .values-card-text { color: rgba(255, 255, 255, 0.72); }
+
+/* Thin accent bar along the bottom edge; fills the width on hover. */
+.values-bar {
+  position: absolute;
+  left: 22px;
+  bottom: 0;
+  width: 44px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: #050505;
+  transition: width 0.45s var(--ease-out);
+}
+.values-card:hover .values-bar { width: calc(100% - 44px); }
 
 @media (prefers-reduced-motion: reduce) {
-  .values-card, .values-icon { transition: none; }
-  .values-card:hover { transform: none; }
-  .values-card:hover .values-icon { transform: none; }
+  .values-arrow path { stroke-dashoffset: 0; }
+  .values-head.is-visible .values-arrow, .values-head.is-visible .values-arrow path { animation: none; }
+  .values-card, .values-icon, .values-bar, .values-num { transition: none; }
+  .values-card:hover, .values-card:hover .values-icon, .values-card:hover .values-num { transform: none; }
 }

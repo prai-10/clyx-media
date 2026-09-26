@@ -1,0 +1,178 @@
+/* Inner-page hero (PageShell). Always sits on brand blue, so it looks the same in light and dark mode. */
+.inner-hero {
+  --ih-yellow: #FFDE59;
+  --ih-ease: cubic-bezier(.23, 1, .32, 1);
+
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  color: #FFFFFF;
+  padding: 128px 0 64px;
+  background:
+    radial-gradient(40% 60% at 85% 10%, rgba(255, 222, 89, 0.14), transparent 70%),
+    radial-gradient(50% 70% at 0% 100%, rgba(0, 0, 0, 0.35), transparent 70%),
+    linear-gradient(135deg, #013AA3 0%, #002366 55%, #00133D 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.inner-hero.is-dark {
+  background:
+    radial-gradient(40% 60% at 85% 10%, rgba(255, 222, 89, 0.1), transparent 70%),
+    linear-gradient(135deg, #0A1230 0%, #050505 100%);
+}
+/* Vertical column lines, faded at the edges. */
+.inner-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: calc(100% / 6) 100%;
+  mask-image: linear-gradient(180deg, transparent, #000 25%, #000 75%, transparent);
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 25%, #000 75%, transparent);
+}
+/* Square grid variant (e.g. Blog), faded towards the edges. */
+.inner-hero.has-grid::before {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 64px 64px;
+  background-position: center;
+  mask-image: radial-gradient(ellipse 80% 90% at 50% 50%, #000 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 90% at 50% 50%, #000 40%, transparent 100%);
+}
+/* Soft drifting glow behind the intro card. */
+.inner-hero .ih-orb {
+  position: absolute;
+  z-index: -1;
+  right: -8rem;
+  bottom: -14rem;
+  width: 34rem;
+  height: 34rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(77, 132, 255, 0.45), transparent 65%);
+  filter: blur(30px);
+  pointer-events: none;
+  animation: ih-drift 14s ease-in-out infinite alternate;
+}
+@keyframes ih-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-6rem, -3rem, 0); }
+}
+
+.inner-hero .ih-inner {
+  display: grid;
+  gap: 40px;
+  align-items: end;
+}
+
+.inner-hero .ih-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  padding: 7px 14px 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 222, 89, 0.35);
+  background: rgba(255, 222, 89, 0.08);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ih-yellow);
+}
+.inner-hero .ih-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ih-yellow);
+  animation: ih-pulse 2.4s infinite;
+}
+@keyframes ih-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 222, 89, 0.55); }
+  70% { box-shadow: 0 0 0 9px rgba(255, 222, 89, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 222, 89, 0); }
+}
+
+.inner-hero .ih-title {
+  font-family: 'Urbanist', sans-serif;
+  font-weight: 700;
+  font-size: clamp(2.75rem, 6.4vw, 5.5rem);
+  letter-spacing: -.035em;
+  line-height: 1;
+  color: #FFFFFF;
+}
+
+.inner-hero .ih-card {
+  position: relative;
+  padding: 26px 26px 24px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.5);
+}
+.inner-hero .ih-card::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 26px;
+  width: 48px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--ih-yellow);
+}
+.inner-hero .ih-intro {
+  font-size: 1.02rem;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.inner-hero .ih-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.inner-hero .ih-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background .25s var(--ih-ease), color .25s var(--ih-ease), border-color .25s var(--ih-ease), transform .25s var(--ih-ease);
+}
+.inner-hero .ih-btn svg { transition: transform .3s var(--ih-ease); }
+.inner-hero .ih-btn:hover svg { transform: translate(2px, -2px); }
+.inner-hero .ih-btn-primary { background: var(--ih-yellow); color: #050505; border: 1px solid var(--ih-yellow); }
+.inner-hero .ih-btn-primary:hover { background: #FFFFFF; border-color: #FFFFFF; transform: translateY(-2px); }
+.inner-hero .ih-btn-ghost { color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.35); background: rgba(255, 255, 255, 0.04); }
+.inner-hero .ih-btn-ghost:hover { border-color: #FFFFFF; background: rgba(255, 255, 255, 0.1); transform: translateY(-2px); }
+
+.inner-hero a:focus-visible {
+  outline: 2px solid var(--ih-yellow);
+  outline-offset: 3px;
+}
+
+@media (min-width: 900px) {
+  .inner-hero { padding: 160px 0 88px; }
+  .inner-hero .ih-inner { grid-template-columns: 1.2fr .8fr; gap: 56px; }
+}
+
+@media (max-width: 480px) {
+  .inner-hero .ih-card { padding: 22px 20px 20px; }
+  .inner-hero .ih-card::before { left: 20px; }
+  .inner-hero .ih-btn { flex: 1; justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inner-hero .ih-orb,
+  .inner-hero .ih-dot { animation: none; }
+}

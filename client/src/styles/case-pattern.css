@@ -1,0 +1,161 @@
+/* Case Studies "recurring pattern" band: brand yellow with keep / cut / try-next cards. Same in light and dark mode. */
+.cp-band.bg-yellow {
+  --cp-ink: #050505;
+  --cp-blue: #013AA3;
+  --cp-ease: cubic-bezier(.23, 1, .32, 1);
+
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  color: var(--cp-ink);
+  background:
+    radial-gradient(45% 60% at 100% 0%, rgba(255, 255, 255, 0.55), transparent 70%),
+    radial-gradient(35% 55% at 0% 100%, rgba(255, 170, 40, 0.28), transparent 70%),
+    #FFDE59;
+}
+/* Faint horizontal scan lines, fading out toward the edges. */
+.cp-band::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(0deg, rgba(5, 5, 5, 0.07) 0 1px, transparent 1px 26px);
+  mask-image: radial-gradient(70% 80% at 60% 40%, #000, transparent);
+  -webkit-mask-image: radial-gradient(70% 80% at 60% 40%, #000, transparent);
+}
+
+.cp-inner {
+  display: grid;
+  gap: 24px;
+  padding-block: 36px 40px;
+}
+.cp-top {
+  display: grid;
+  gap: 18px;
+}
+
+/* ---------- Heading ---------- */
+.cp-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--cp-ink);
+  color: #FFDE59;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+.cp-eyebrow svg { animation: cp-beat 1.6s ease-in-out infinite; }
+@keyframes cp-beat {
+  0%, 60%, 100% { transform: none; }
+  30% { transform: scale(1.25); }
+}
+.cp-title {
+  font-size: clamp(2.3rem, 4.6vw, 3.8rem);
+  font-weight: 700;
+  line-height: .98;
+  letter-spacing: -.03em;
+}
+.cp-title-line {
+  display: block;
+  width: fit-content;
+  opacity: 0;
+  transform: translateY(.4em);
+  transition: opacity .6s var(--cp-ease), transform .6s var(--cp-ease);
+  transition-delay: calc(var(--i) * 160ms + 200ms);
+}
+.cp-top.is-visible .cp-title-line { opacity: 1; transform: none; }
+/* The last line (the "scale" line) turns blue. */
+.cp-title-line.is-hl { color: var(--cp-blue); }
+
+/* ---------- Body ---------- */
+.cp-text {
+  max-width: 30rem;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: rgba(5, 5, 5, 0.78);
+}
+
+/* ---------- Keep / cut / try-next cards ---------- */
+.cp-steps { display: grid; gap: 14px; }
+.cp-step-reveal { height: 100%; }
+.cp-step {
+  position: relative;
+  height: 100%;
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(5, 5, 5, 0.12);
+  background: rgba(255, 255, 255, 0.42);
+  backdrop-filter: blur(6px);
+  transition: background .35s var(--cp-ease), color .35s var(--cp-ease), transform .35s var(--cp-ease), box-shadow .35s var(--cp-ease);
+}
+.cp-step:hover {
+  background: var(--cp-ink);
+  color: #FFFFFF;
+  transform: translateY(-6px);
+  box-shadow: 0 22px 40px -22px rgba(0, 0, 0, 0.6);
+}
+.cp-step-top { display: flex; align-items: center; gap: 10px; }
+.cp-step-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--cp-ink);
+  color: #FFDE59;
+  transition: background .35s var(--cp-ease), color .35s var(--cp-ease), transform .35s var(--cp-ease);
+}
+.cp-step:hover .cp-step-icon { background: #FFDE59; color: var(--cp-ink); transform: rotate(-8deg); }
+.cp-step-tag {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-size: .66rem;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  opacity: .75;
+}
+.cp-step-num {
+  margin-left: auto;
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(5, 5, 5, 0.3);
+  transition: -webkit-text-stroke-color .35s var(--cp-ease);
+}
+.cp-step:hover .cp-step-num { -webkit-text-stroke-color: #FFDE59; }
+.cp-step-title {
+  margin-top: 10px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -.02em;
+}
+.cp-step-text {
+  margin-top: 6px;
+  font-size: .9rem;
+  line-height: 1.55;
+  opacity: .72;
+}
+
+@media (min-width: 768px) {
+  .cp-inner { gap: 28px; padding-block: 44px 52px; }
+  .cp-top { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 40px; align-items: end; }
+  .cp-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+}
+@media (max-width: 767px) {
+  .cp-inner { padding-inline: 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-band * { animation: none !important; transition: none !important; }
+  .cp-title-line { opacity: 1; transform: none; }
+}

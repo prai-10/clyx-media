@@ -1,0 +1,244 @@
+/* Creators page: blue "creator types" band. Theme-independent: always blue with white ink. */
+
+.ct-band {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+/* Faint line grid, fading out towards the bottom. */
+.ct-band::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(to bottom, #000 0%, transparent 80%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 80%);
+  pointer-events: none;
+}
+/* Soft yellow glow in the bottom-left corner. */
+.ct-band::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 520px;
+  height: 520px;
+  left: -200px;
+  bottom: -260px;
+  border-radius: 50%;
+  background: rgba(255, 222, 89, 0.22);
+  filter: blur(90px);
+  pointer-events: none;
+}
+
+.ct-inner { padding-block: 48px; }
+@media (min-width: 768px) { .ct-inner { padding-block: 64px; } }
+
+/* ---------- Header ---------- */
+.ct-head {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+@media (min-width: 768px) {
+  .ct-head { grid-template-columns: 1.2fr 1fr; align-items: end; gap: 48px; margin-bottom: 36px; }
+}
+.ct-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.ct-eyebrow-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #FFDE59;
+  box-shadow: 0 0 0 4px rgba(255, 222, 89, 0.2);
+}
+.ct-title {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  font-weight: 700;
+  line-height: 1;
+}
+/* Highlight letters rise out of a blur one by one. */
+.ct-highlight { position: relative; display: inline-block; white-space: nowrap; }
+.ct-ch { display: inline-block; opacity: 0; }
+.ct-head.is-visible .ct-ch { animation: ct-appear .7s var(--ease-out) calc(var(--i) * 60ms + 300ms) both; }
+@keyframes ct-appear {
+  from { opacity: 0; transform: translateY(.45em) rotate(6deg); filter: blur(8px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+
+.ct-intro {
+  margin: 0;
+  max-width: 440px;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.72);
+}
+@media (min-width: 768px) { .ct-intro { justify-self: end; } }
+
+/* ---------- Cards ---------- */
+.ct-grid {
+  display: grid;
+  gap: 18px;
+}
+@media (min-width: 768px) { .ct-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; } }
+.ct-grid > .scroll-reveal { height: 100%; }
+
+/* Glass card on blue; flips to the brand yellow on hover. */
+.ct-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 22px 24px 24px;
+  overflow: hidden;
+  border-radius: 24px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.03) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset, 0 24px 48px -32px rgba(0, 0, 0, 0.6);
+  transition: transform 0.4s var(--ease-out), background 0.4s var(--ease-out), border-color 0.4s var(--ease-out), color 0.4s var(--ease-out);
+}
+.ct-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: #FFDE59;
+  opacity: 0;
+  transition: opacity 0.4s var(--ease-out);
+}
+.ct-card:hover {
+  transform: translateY(-6px);
+  border-color: #FFDE59;
+  color: #050505;
+}
+.ct-card:hover::before { opacity: 1; }
+.ct-card > * { position: relative; z-index: 1; }
+
+.ct-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: auto;
+  padding-bottom: 22px;
+}
+.ct-icon {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  overflow: hidden;
+  /* Dark lacquered tile: lit from the top-left, bevelled edge, deep cast shadow. */
+  background:
+    radial-gradient(120% 90% at 25% 0%, #2B3F86 0%, rgba(43, 63, 134, 0) 60%),
+    linear-gradient(160deg, #111C45 0%, #060B22 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.55),
+    0 14px 24px -10px rgba(0, 0, 0, 0.7),
+    0 3px 6px rgba(0, 0, 0, 0.3);
+  transition: transform 0.4s var(--ease-out), box-shadow 0.4s var(--ease-out);
+}
+/* Glossy reflection across the top half. */
+.ct-icon::before {
+  content: '';
+  position: absolute;
+  inset: 1px 1px 50% 1px;
+  border-radius: 15px 15px 40% 40% / 15px 15px 12px 12px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+/* Gold icon (stroke gradient set in the component) with a warm glow and a pressed-in shadow. */
+.ct-icon svg {
+  position: relative;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.6)) drop-shadow(0 0 7px rgba(255, 210, 60, 0.45));
+  transition: transform 0.45s var(--ease-out), filter 0.45s var(--ease-out);
+}
+.ct-card:hover .ct-icon {
+  transform: rotate(-6deg) translateY(-2px);
+  box-shadow:
+    0 0 0 1px rgba(5, 5, 5, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.55),
+    0 18px 28px -12px rgba(5, 5, 5, 0.6),
+    0 4px 8px rgba(5, 5, 5, 0.25);
+}
+.ct-card:hover .ct-icon svg {
+  transform: scale(1.1);
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.6)) drop-shadow(0 0 10px rgba(255, 210, 60, 0.7));
+}
+.ct-tag {
+  margin: 0;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.8);
+  transition: border-color 0.4s var(--ease-out), color 0.4s var(--ease-out);
+}
+.ct-card:hover .ct-tag { border-color: rgba(5, 5, 5, 0.25); color: rgba(5, 5, 5, 0.7); }
+
+/* Big outlined number in the card background, bottom-right. */
+.ct-card > .ct-num {
+  position: absolute;
+  right: 16px;
+  bottom: -22px;
+  z-index: 0;
+  font-size: 6.5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.16);
+  pointer-events: none;
+  user-select: none;
+  transition: transform 0.45s var(--ease-out), -webkit-text-stroke-color 0.4s var(--ease-out);
+}
+.ct-card:hover > .ct-num {
+  transform: translateY(-8px);
+  -webkit-text-stroke-color: rgba(5, 5, 5, 0.2);
+}
+
+.ct-card-title {
+  margin: 0;
+  font-size: clamp(1.6rem, 2.3vw, 2rem);
+  font-weight: 700;
+}
+.ct-card-text {
+  margin: 8px 0 0;
+  max-width: 30ch;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.72);
+  transition: color 0.4s var(--ease-out);
+}
+.ct-card:hover .ct-card-text { color: rgba(5, 5, 5, 0.72); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ct-ch { opacity: 1; }
+  .ct-head.is-visible .ct-ch { animation: none; }
+  .ct-card, .ct-card::before, .ct-icon, .ct-icon svg, .ct-tag, .ct-num, .ct-card-text { transition: none; }
+  .ct-card:hover, .ct-card:hover .ct-icon, .ct-card:hover .ct-icon svg, .ct-card:hover > .ct-num { transform: none; }
+}
